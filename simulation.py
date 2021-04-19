@@ -92,7 +92,7 @@ class SimRadioGal:
         # PB We stack the coordinates along the last axis
         mat_coords = np.stack((x - xo, y - yo), axis=-1)
 
-        G = amplitude * np.exp(-0.5*np.matmul(np.matmul(mat_coords[:, :, np.newaxis, :],
+        G = amplitude * np.exp(-np.matmul(np.matmul(mat_coords[:, :, np.newaxis, :],
                                                         mat_cov_inv),
                                               mat_coords[..., np.newaxis])) + offset
         return G.squeeze()
@@ -144,17 +144,18 @@ class SimRadioGal:
             nsrc_ = self._src_density_sqdeg*(nx*ny*self._pixel_size**2/(3600.**2))
             nsrc = np.random.poisson(int(nsrc_))
 
-        print("Simulating %d sources" % nsrc)
+        #print("Simulating %d sources" % nsrc)
 
         if background:
             pass
 
-        if fnblobout is not None:
-            f = open(fnblobout,'a+')
-            f.write('# xind  yind  sigx  sigy  orientation  flux\n')
-
         for ii in range(nsrc):
             self.galparams()
+            if ii==0:
+                self.write_gal_params(fnblobout, header=True)
+            else:
+                self.write_gal_params(fnblobout, header=False)
+
             source_ii = self.gaussian2D(self.coords,
                                    amplitude=self.flux,
                                    xo=self.nblock//2,
@@ -164,8 +165,8 @@ class SimRadioGal:
                                    rot=self.rho,
                                    offset=0)
 
-            if distort_gal:
-                alpha = np.random.uniform(50., 100.)
+            if distort_gal is not False:
+                alpha = distort_gal
                 source_ii = self.distort_galaxy(source_ii, 
                                                 alpha=alpha)
 
@@ -186,11 +187,15 @@ class SimRadioGal:
 
         return data
 
+    def write_gal_params(self, fnout, header=False):
+        f = open(fnout,'a+')
 
+        if header:
+            f.write('# xind  yind  sigx  sigy  orientation  flux\n')
 
-
-
-
+        blobparams = (self.xind, self.yind, self.sigx, self.sigy, self.rho, self.flux)
+        fmt_out = '%d  %d %0.2f %0.2f %0.3f %4f\n'
+        f.write(fmt_out % blobparams)
 
 
 

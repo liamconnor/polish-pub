@@ -7,18 +7,35 @@ import cv2
 from scipy import signal, interpolate
 import optparse
 
+from astropy.modeling.models import Sersic2D
+import simulation
+
 try:
     from data_augmentation import elastic_transform
 except:
     print("Could not load data_augmentation")
 
+try:
+    from astropy.io import fits 
+except:
+    print("Could not load astropy.io.fits")
+
 PIXEL_SIZE = 0.25 # resolution of HR map in arcseconds
 fn_background = './data/haslam-cdelt0.031074-allsky.npy'
 src_density = 5 # per sq arcminute 
-NSIDE = 3000 # number of pixels per side for high res image
+NSIDE = 2304 # number of pixels per side for high res image
 FREQMIN, FREQMAX = 0.7, 2.0
 
-def Gaussian2D_v1(coords,  # x and y coordinates for each image.
+def readfits(fnfits):
+    hdulist = fits.open(fnfits)
+    data = hdulist[0].data[0, 0]
+    header = hdulist[0].header
+    pixel_scale = abs(header['CDELT1'])
+    num_pix = abs(header['NAXIS1'])
+    return data, header, pixel_scale, num_pix
+
+
+def gaussian2D(coords,  # x and y coordinates for each image.
                   amplitude=1,  # Highest intensity in image.
                   xo=0,  # x-coordinate of peak centre.
                   yo=0,  # y-coordinate of peak centre.
@@ -57,53 +74,6 @@ def Gaussian2D_v1(coords,  # x and y coordinates for each image.
                                           mat_coords[..., np.newaxis])) + offset
     return G.squeeze()
 
-
-    def gaussian(height, center_x, center_y, width_x, width_y, rotation):
-        """Returns a gaussian function with the given parameters"""
-        width_x = float(width_x)
-        width_y = float(width_y)
-
-        rotation = np.deg2rad(rotation)
-        center_x = center_x * np.cos(rotation) - center_y * np.sin(rotation)
-        center_y = center_x * np.sin(rotation) + center_y * np.cos(rotation)
-
-        def rotgauss(x,y):
-            xp = x * np.cos(rotation) - y * np.sin(rotation)
-            yp = x * np.sin(rotation) + y * np.cos(rotation)
-            g = height*np.exp(
-                -(((center_x-xp)/width_x)**2+
-                  ((center_y-yp)/width_y)**2)/2.)
-            return g
-        return rotgauss
-
-def Gaussian2D_v1_flatten(coords,  # x and y coordinates for each image.
-                  amplitude=1,  # Highest intensity in image.
-                  xo=0,  # x-coordinate of peak centre.
-                  yo=0,  # y-coordinate of peak centre.
-                  sigma_x=1,  # Standard deviation in x.
-                  sigma_y=1,  # Standard deviation in y.
-                  rho=0,  # Correlation coefficient.
-                  offset=0):  # Offset from zero (background radiation).
-    x, y = coords
-
-    xo = float(xo)
-    yo = float(yo)
-
-    # Create covariance matrix
-    mat_cov = [[sigma_x**2, rho * sigma_x * sigma_y],
-               [rho * sigma_x * sigma_y, sigma_y**2]]
-    mat_cov = np.asarray(mat_cov)
-    # Find its inverse
-    mat_cov_inv = np.linalg.inv(mat_cov)
-
-    # PB We stack the coordinates along the last axis
-    mat_coords = np.stack((x - xo, y - yo), axis=-1)
-
-    G = amplitude * np.exp(-0.5*np.matmul(np.matmul(mat_coords[:, :, np.newaxis, :],
-                                                    mat_cov_inv),
-                                          mat_coords[..., np.newaxis])) + offset
-    return G.squeeze().ravel()
-
 def sim_sources(data, nsrc=2000, noise=True, 
                 background=False, fnblobout=None, nchan=1):
     print("Simulating %d sources" % nsrc)
@@ -133,26 +103,23 @@ def sim_sources(data, nsrc=2000, noise=True,
         f.write('# xind  yind  sigx  sigy  orientation  flux\n')
 
     for ii in range(nsrc):
-        # Euclidean source counts
-        flux = np.random.uniform(0,1)**(-2/2.5)
         nfluxhigh = np.random.uniform(0,0.1)**(-2./3.)
         nfluxlow = np.random.uniform(0.05,1)**(-1.)
         flux = nfluxhigh*nfluxlow
-        # xind = np.random.randint(150//2, nx-150//2)
-        # yind = np.random.randint(150//2, ny-150//2)
+        if flux<fluxmin:
+            fluxmin=flux 
+
         xind = np.random.randint(0, nx)
         yind = np.random.randint(0, ny)
         sigx = np.random.gamma(2.25,1.5) * 0.5 / PIXEL_SIZE
-        ellipticity=np.random.gamma(2,3)/20.*0.5
-
-        while ellipticity > 0.6:
-            ellipticity=np.random.gamma(2,3)/20.
+#        ellipticity=np.random.gamma(2,3)/20.*0.5
+        ellipticity=np.random.beta(1.7,4.5)
 
         sigy = sigx * ((1-ellipticity)/(1+ellipticity))**0.5
 
         coords = np.meshgrid(np.arange(0, 150), np.arange(0, 150))
         rho = np.random.uniform(-90,90)
-        source_ii = Gaussian2D_v1(coords,
+        source_ii = gaussian2D(coords,
                                 amplitude=flux,
                                 xo=150//2,
                                 yo=150//2,
@@ -184,6 +151,8 @@ def sim_sources(data, nsrc=2000, noise=True,
             fmt_out = '%d  %d %0.2f %0.2f %0.3f %4f\n'
             f.write(fmt_out % blobparams)
 
+    print(fluxmin, data.max())
+
     if fnblobout is not None:f.close()
 
     nbigblob = 0*np.random.randint(0,5)
@@ -199,7 +168,7 @@ def sim_sources(data, nsrc=2000, noise=True,
         sigx = np.random.normal(75,10)
         sigy = np.random.normal(75,10)
         coords = np.meshgrid(np.arange(0, nx), np.arange(0, ny))
-        source_ii = Gaussian2D_v1(coords,
+        source_ii = gaussian2D(coords,
                                 amplitude=flux,
                                 xo=xind,
                                 yo=yind,
@@ -299,6 +268,8 @@ def create_LR_image(fl, kernel, fdirout=None,
         print("Input file list is empty")
         exit()
 
+    fl.sort()
+
     # if pointsrcs:
     #     fl = range(nimages)
 
@@ -318,6 +289,7 @@ def create_LR_image(fl, kernel, fdirout=None,
             print("Finished %d/%d" % (ii, len(fl)))
 
         if pointsrcs:
+            print(fn)
             Nx, Ny = NSIDE, NSIDE
             data = np.zeros([Nx,Ny])
             nsrc = np.random.poisson(int(src_density*(Nx*Ny*PIXEL_SIZE**2/60.**2)))
@@ -325,8 +297,11 @@ def create_LR_image(fl, kernel, fdirout=None,
             if not os.path.isdir(fdirgalparams):
                 os.system('mkdir %s' % fdirgalparams)
             fnblobout = fdirgalparams + fn.split('/')[-1].strip('.png')+'GalParams.txt'
-            data = sim_sources(data, noise=False, nsrc=nsrc,
-                               fnblobout=fnblobout, nchan=nchan)
+#            data = sim_sources(data, noise=False, nsrc=nsrc,
+#                               fnblobout=fnblobout, nchan=nchan)
+            SimObj = simulation.SimRadioGal(nx=Nx, ny=Ny)
+            data = SimObj.sim_sky(distort_gal=ii*1.5, fnblobout=fnblobout)
+
             if len(data.shape)==2:
                 data = data[..., None]
             norm = True
@@ -362,6 +337,7 @@ def create_LR_image(fl, kernel, fdirout=None,
                     plt.imshow(kernel-kernel_[..., 0],vmax=0.1, vmin=-0.1)
                     plt.colorbar()
                     plt.show()
+
                 kernel_ = kernel_[..., 0]
                 fdiroutPSF = fdirout[:-6]+'/psf/'
                 fnout1=fdirout+'./test%0.2f.png'%aa
@@ -453,6 +429,16 @@ if __name__=='__main__':
     elif options.kernel in ('Gaussian', 'gaussian'):
         kernel1D = signal.gaussian(8, std=1).reshape(8, 1)
         kernel = np.outer(kernel1D, kernel1D)
+    elif options.kernel.endswith('fits'):
+        from skimage import transform
+        kernel, header, pixel_scale_psf, num_pix = readfits(options.kernel)
+        nkern = len(kernel)
+        kernel = kernel[nkern//2-options.ksize//2:nkern//2+options.ksize//2, 
+                        nkern//2-options.ksize//2:nkern//2+options.ksize//2]
+        pixel_scale_psf *= 3600
+        if abs((1-pixel_scale_psf/PIXEL_SIZE)) > 0.025:
+            print("Stretching PSF by %0.3f to match map" % (pixel_scale_psf/PIXEL_SIZE))
+            kernel = transform.rescale(kernel, pixel_scale_psf/PIXEL_SIZE)
 
     fdirinTRAIN = options.fdirin+'/DIV2K_train_HR/'
     fdirinVALID = options.fdirin+'/DIV2K_valid_HR/'

@@ -1,11 +1,8 @@
-import matplotlib.pylab as plt
-import numpy as np
-import matplotlib.gridspec as gridspec
-
 import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 from skimage import draw
 from astropy.io import fits
