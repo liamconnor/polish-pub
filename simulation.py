@@ -151,10 +151,11 @@ class SimRadioGal:
 
         for ii in range(nsrc):
             self.galparams()
-            if ii==0:
-                self.write_gal_params(fnblobout, header=True)
-            else:
-                self.write_gal_params(fnblobout, header=False)
+            if fnblobout is not None:
+                if ii==0:
+                    self.write_gal_params(fnblobout, header=True)
+                else:
+                    self.write_gal_params(fnblobout, header=False)
 
             source_ii = self.gaussian2D(self.coords,
                                    amplitude=self.flux,
@@ -196,6 +197,34 @@ class SimRadioGal:
         blobparams = (self.xind, self.yind, self.sigx, self.sigy, self.rho, self.flux)
         fmt_out = '%d  %d %0.2f %0.2f %0.3f %4f\n'
         f.write(fmt_out % blobparams)
+
+    def write_data_fits(self, data, header, fnout):
+        hdu = fits.PrimaryHDU(data, header=header)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(fnout)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
