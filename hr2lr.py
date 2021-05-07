@@ -74,118 +74,6 @@ def gaussian2D(coords,  # x and y coordinates for each image.
                                           mat_coords[..., np.newaxis])) + offset
     return G.squeeze()
 
-def sim_sources(data, nsrc=2000, noise=True, 
-                background=False, fnblobout=None, nchan=1):
-    print("Simulating %d sources" % nsrc)
-    if nchan==1:
-        data = np.zeros_like(data, dtype=np.float32)
-    else:
-        freqarr = np.linspace(FREQMIN, FREQMAX, nchan)
-        data = np.zeros(data.shape + (nchan,), dtype=np.float32)
-
-    if background:
-        data_bg = np.load(fn_background)
-        nbx,nby = data_bg.shape
-        ix, iy = np.random.randint(10,nbx-10), np.random.randint(10,nby-10)
-        data_bg_ = data_bg[ix-5:ix+5, iy-5:iy+5]
-        while np.isnan(data_bg_).sum()>0:
-            ix, iy = np.random.randint(10,nbx-10), np.random.randint(10,nby-10)
-            data_bg_ = data_bg[ix-5:ix+5, iy-5:iy+5]
-        data_bg_f = interpolate.interp2d(np.linspace(0,1,10),np.linspace(0,1,10),data_bg_)
-        data_bg_up = data_bg_f(np.linspace(0,1,data.shape[1]),np.linspace(0,1,data.shape[0]))
-        data += data_bg_up
-        print(np.median(data))
-
-    nx, ny = data.shape[:2]
-
-    if fnblobout is not None:
-        f = open(fnblobout,'a+')
-        f.write('# xind  yind  sigx  sigy  orientation  flux\n')
-
-    for ii in range(nsrc):
-        nfluxhigh = np.random.uniform(0,0.1)**(-2./3.)
-        nfluxlow = np.random.uniform(0.05,1)**(-1.)
-        flux = nfluxhigh*nfluxlow
-        if flux<fluxmin:
-            fluxmin=flux 
-
-        xind = np.random.randint(0, nx)
-        yind = np.random.randint(0, ny)
-        sigx = np.random.gamma(2.25,1.5) * 0.5 / PIXEL_SIZE
-#        ellipticity=np.random.gamma(2,3)/20.*0.5
-        ellipticity=np.random.beta(1.7,4.5)
-
-        sigy = sigx * ((1-ellipticity)/(1+ellipticity))**0.5
-
-        coords = np.meshgrid(np.arange(0, 150), np.arange(0, 150))
-        rho = np.random.uniform(-90,90)
-        source_ii = gaussian2D(coords,
-                                amplitude=flux,
-                                xo=150//2,
-                                yo=150//2,
-                                sigma_x=sigx,
-                                sigma_y=sigy,
-                                rot=rho,
-                                offset=0)
-
-        if nchan==1:
-            xmin, xmax = max(0,xind-150//2), min(xind+150//2,data.shape[0])
-            ymin, ymax = max(0,yind-150//2), min(yind+150//2,data.shape[1])
-            data[xmin:xmax, ymin:ymax] += (source_ii.T)[\
-                            abs(min(0, xind-150//2)):min(150, 150+nx-(xind+150//2)), \
-                            abs(min(0, yind-150//2)):min(150, 150+ny-(yind+150//2))]
-        else:
-            spec_ind = np.random.normal(0.55,0.25)
-#            spec_ind = np.random.uniform(-4, 4)
-            for nu in range(nchan):
-                xmin, xmax = max(0,xind-150//2), min(xind+150//2,data.shape[0])
-                ymin, ymax = max(0,yind-150//2), min(yind+150//2,data.shape[1])
-                Snu = (source_ii.T)[\
-                            abs(min(0, xind-150//2)):min(150, 150+nx-(xind+150//2)), \
-                            abs(min(0, yind-150//2)):min(150, 150+ny-(yind+150//2))]
-                Snu *= (freqarr[nu]/1.4)**(-spec_ind)
-                data[xmin:xmax, ymin:ymax, nu] += Snu
-
-        if fnblobout is not None:
-            blobparams = (xind, yind, sigx, sigy, rho, flux)
-            fmt_out = '%d  %d %0.2f %0.2f %0.3f %4f\n'
-            f.write(fmt_out % blobparams)
-
-    print(fluxmin, data.max())
-
-    if fnblobout is not None:f.close()
-
-    nbigblob = 0*np.random.randint(0,5)
-
-    for ii in range(nbigblob):
-        if nchan>1:
-            continue
-#        print("%d big blobs" % ii)
-        # Euclidean source counts
-        flux = 0.15*np.random.uniform(0,1)**(-2/3.0)
-        xind = np.random.randint(150//2, nx-150//2)
-        yind = np.random.randint(150//2, ny-150//2)
-        sigx = np.random.normal(75,10)
-        sigy = np.random.normal(75,10)
-        coords = np.meshgrid(np.arange(0, nx), np.arange(0, ny))
-        source_ii = gaussian2D(coords,
-                                amplitude=flux,
-                                xo=xind,
-                                yo=yind,
-                                sigma_x=sigx,
-                                sigma_y=sigy,
-                                rho=np.random.uniform(-1,1),
-                                offset=0)
-        data += (source_ii.T)#.astype(np.uint16)
-
-    if noise:
-        noise_sig = 1e-1 * data.max()
-        noise_arr = np.random.normal(0,noise_sig,data.shape)#.astype(np.uint16)
-        noise_arr[noise_arr<0] = 0
-        data += noise_arr
-
-    return data
-
 def normalize_data(data, nbit=16):
     data = data - data.min()
     data = data/data.max()
@@ -203,11 +91,12 @@ def convolvehr(data, kernel, plotit=False,
         ncolor = 1
     else:
         ncolor = 3
-       
-    dataLR = signal.fftconvolve(data, kernel, mode='same')
-
+    
     if noise:
-        dataLR += 10*np.random.chisquare(5,dataLR.shape)
+#        dataLR += 10*np.random.chisquare(5,dataLR.shape)
+        data_noise = data + np.random.normal(0,1,data.shape)
+
+    dataLR = signal.fftconvolve(data_noise, kernel, mode='same')
 
     if norm is True:
          dataLR = normalize_data(dataLR, nbit=nbit)
@@ -297,10 +186,8 @@ def create_LR_image(fl, kernel, fdirout=None,
             if not os.path.isdir(fdirgalparams):
                 os.system('mkdir %s' % fdirgalparams)
             fnblobout = fdirgalparams + fn.split('/')[-1].strip('.png')+'GalParams.txt'
-#            data = sim_sources(data, noise=False, nsrc=nsrc,
-#                               fnblobout=fnblobout, nchan=nchan)
             SimObj = simulation.SimRadioGal(nx=Nx, ny=Ny)
-            data = SimObj.sim_sky(distort_gal=ii*1.5, fnblobout=fnblobout)
+            data = SimObj.sim_sky(distort_gal=False, fnblobout=fnblobout)
 
             if len(data.shape)==2:
                 data = data[..., None]
@@ -347,14 +234,11 @@ def create_LR_image(fl, kernel, fdirout=None,
             kernel_ = kernel
 
         dataLR = convolvehr(data, kernel_, plotit=plotit, 
-                            rebin=rebin, norm=norm, nbit=nbit)
-
-#        noise_arr = np.random.normal(0, 0.005*data.max(), dataLR.shape)
-#        dataLR += noise_arr.astype(dataLR.dtype)
+                            rebin=rebin, norm=norm, nbit=nbit, 
+                            noise=True)
 
         data = normalize_data(data, nbit=nbit)
         dataLR = normalize_data(dataLR, nbit=nbit)
-#            fnout = fdirout + fn.split('/')[-1][:-4] + 'x%d.png' % (alphad,rebin)
 
         if nbit==8:
             if save_img:
