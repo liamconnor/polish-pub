@@ -9,7 +9,7 @@ from astropy.io import fits
 from typing import Tuple, List, Optional
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-def get_psf_stats(fn, extent_deg=0.25):
+def get_psf_stats(fn, extent_deg=0.25, pixel_scale=0.5):
     if fn.endswith('npy'):
         im = np.load(fn)
         pixel_scale = 0.5/3600.
@@ -30,6 +30,7 @@ def get_psf_stats(fn, extent_deg=0.25):
         radial_std[i] = np.std(im[circle_perimeter])
         radial_maxabs[i] = np.abs(im[circle_perimeter]).max()
 
+    print(pixel_scale*3600)
     dist = np.linspace(0, max_radius*pixel_scale*3600, num=max_radius)
     return dist, radial_average, radial_std, radial_maxabs, im
 
@@ -92,9 +93,10 @@ plt.rcParams.update({
 colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
 
 def plot_simulated_sky():
-    galsize = np.random.gamma(2.25,1.5,10000) * 0.5 
+    galsize = np.random.gamma(2.25,1.,10000) * 0.5 
     ellipticity=np.random.gamma(2,3, 10000)/20.*0.5
     ellipticity=np.random.gamma(10,10,10000)/1000.
+    ellipticity=np.random.beta(1.7,4.5,10000)
     spec_ind = np.random.normal(-0.55, 0.15, 10000)
 
     nfluxhigh = np.random.uniform(0,0.1,100000)**(-2./3.)
@@ -103,27 +105,28 @@ def plot_simulated_sky():
 
     gs = gridspec.GridSpec(2, 2)
     ax1 = plt.subplot(gs[0, 0])
-    ax1.hist(ellipticity, bins=50, color=colors1[1], alpha=0.5, density=True)
+    ax1.hist(ellipticity, bins=50, color=colors1[1], alpha=0.25, density=True)
     ax1.set_xlabel('Ellipticity')
     ax1.set_yticklabels([])
     ax1.set_ylabel('Number')
 
     ax2 = plt.subplot(gs[0, 1])
-    ax2.hist(galsize, bins=50, color=colors1[2], alpha=0.5, density=True)
+    ax2.hist(galsize, bins=50, color=colors1[2], alpha=0.25, density=True)
     ax2.set_xlabel('Semi-major axis [arcseconds]')
     ax2.set_yticklabels([])
 
     ax4 = plt.subplot(gs[1, 0])
-    ax4.hist(np.log10(flux[flux>10.]), bins=100, log=True, color='C1', alpha=0.5, density=True)
+    ax4.hist(np.log10(flux[flux>10.]), bins=100, log=True, color='C1', alpha=0.25, density=True)
     ax4.set_xlabel(r'$\log_{10}$(Flux [$\mu$ Jy])')
     ax4.set_yticklabels([])
     ax4.set_ylabel('Number')
 
     ax3 = plt.subplot(gs[1, 1])
-    ax3.hist(spec_ind, color=colors1[3], bins=50, alpha=0.5, density=True)
+    ax3.hist(spec_ind, color=colors1[3], bins=50, alpha=0.25, density=True)
     ax3.set_xlabel('Spectral index')
     ax3.set_yticklabels([])
     plt.tight_layout()
+
 
 def plot_array(fncfg, fnpsf1, fnpsf2):
 #    psf1 = np.load(fnpsf1)
@@ -131,6 +134,8 @@ def plot_array(fncfg, fnpsf1, fnpsf2):
     d1,r1,rstd1,rmax1,psf1=get_psf_stats(fnpsf1, 0.5)
     d2,r2,rstd2,rmax2,psf2=get_psf_stats(fnpsf2, 0.5)
     
+    pixel_scale = np.diff(d1)[0]
+
     psfplot = psf2
     nx = psfplot.shape[0]
     psfplot = psfplot[nx//2-1024:nx//2+1024, nx//2-1024:nx//2+1024]
@@ -139,13 +144,12 @@ def plot_array(fncfg, fnpsf1, fnpsf2):
     x, y = d[:,0], d[:, 1]
     nant = x.size
     print(d.shape)
-    triuind = np.triu_indices(nant)
+    triuind = np.triu_indices(nant, 1)
 
     # Compute baseline lengths 
     dX = x[:, None] - x[None]
     dY = y[:, None] - y[None]
 
-    # Use subset of positions
     dx,dy = dX[triuind][:], dY[triuind][:]
     dy /= (3e2/1350.*1000.) # change units to kilo lambdas
     dx /= (3e2/1350.*1000.) # change units to kilo lambdas
@@ -170,10 +174,14 @@ def plot_array(fncfg, fnpsf1, fnpsf2):
     plt.colorbar(immy,cax=cax)
 
     ax3 = plt.subplot(gs[0, 4:])
-    immy=ax3.imshow(np.log10(abs(psfplot)), cmap='Greys', extent=uvext, aspect='auto', vmax=0, vmin=-5.5)
+    immy=ax3.imshow(np.log10(abs(psfplot)), cmap='Greys', 
+                    extent=[-0.5*pixel_scale*nx, 0.5*pixel_scale*nx, -0.5*pixel_scale*nx, 0.5*pixel_scale*nx], 
+                    aspect='auto', vmax=0, vmin=-5.5)
+    plt.xlim(-300, 300)
+    plt.ylim(-300, 300)
     ax3.set_xlabel(r'$m$ (arcseconds)')
     ax3.set_ylabel(r'$l$ (arcseconds)')
-    ax3.set_title('log(|PSF|)\nfull-band snapshot', weight='bold')
+    ax3.set_title('log(|PSF|)\nfull-band 15 minutes', weight='bold')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(immy,cax=cax)
@@ -189,7 +197,7 @@ def plot_array(fncfg, fnpsf1, fnpsf2):
     ax5 = plt.subplot(gs[1, 3:])
     ax5.plot(d2,np.abs(r2),c='darkblue')
     ax5.set_xlabel('Radius (arcseconds)')
-    ax5.legend(['full band snapshot'], loc=1)
+    ax5.legend(['full band 15 minutes'], loc=1)
     ax5.set_ylim(1e-7, 2.0)
     ax5.loglog()
 
@@ -343,6 +351,303 @@ def plot_radial_psf(fnlr, fnhr, fnpsf, fn_model):
     ax6.text(0.7, 0.1, r'PSF$_{true}$=2$\times$PSF$_{train}$', 
             transform=ax6.transAxes, fontsize=10,
             verticalalignment='center', horizontalalignment='center', bbox=props)
+
+
+def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
+            cmap='Greys', suptitle=None, 
+            fnfigout='test.pdf', vm=None, nbit=16, 
+            calcpsnr=True, vmsr=None, vmc=None):
+
+    fig=plt.figure(figsize=(11.75,8.8))
+
+    datalr_1, datalr_2 = datalr 
+    datahr_1, datahr_2 = datahr 
+    datasr_1, datasr_2 = datasr
+
+    if datahr is None:
+        nsub=2
+    else:
+        nsub=3
+    if datahr is not None:
+      pass
+
+    if dataother is not None:
+        nsub += 1
+        dataclean_1, dataclean_2 = dataother
+
+    if calcpsnr:
+        psnr_2 = tf.image.psnr(datasr_1[None, ...,None].astype(np.uint16), 
+                             datahr_1[None, ..., None].astype(np.uint16), 
+                             max_val=2**(nbit)-1)
+        ssim_2 = tf.image.ssim(datasr_1[None, ..., None].astype(np.uint16), 
+                             datahr_1[None, ..., None].astype(np.uint16), 
+                             2**(nbit)-1, filter_size=2, 
+                             filter_sigma=1.5, k1=0.01, k2=0.03)
+        psnr_2 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_2, ssim_2)
+
+        psnr_1 = tf.image.psnr(datasr_2[None, ...,None].astype(np.uint16), 
+                             datahr_2[None, ..., None].astype(np.uint16), 
+                            max_val=2**(nbit)-1)
+        ssim_1 = tf.image.ssim(datasr_2[None, ..., None].astype(np.uint16), 
+                             datahr_2[None, ..., None].astype(np.uint16), 
+                             2**(nbit)-1, filter_size=2, 
+                             filter_sigma=1.5, k1=0.01, k2=0.03)
+        psnr_1 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_1, ssim_1)
+
+        psnr_clean_1 = tf.image.psnr(dataclean_1[None, ...,None].astype(np.uint16), 
+                             datahr_1[None, ..., None].astype(np.uint16), 
+                            max_val=2**(nbit)-1)
+        ssim_clean_1 = tf.image.ssim(dataclean_2[None, ..., None].astype(np.uint16), 
+                             datahr_2[None, ..., None].astype(np.uint16), 
+                             2**(nbit)-1, filter_size=2, 
+                             filter_sigma=1.5, k1=0.01, k2=0.03)
+        psnr_clean_1 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_clean_1, ssim_clean_1)
+
+        psnr_clean_2 = tf.image.psnr(dataclean_1[None, ...,None].astype(np.uint16), 
+                             datahr_1[None, ..., None].astype(np.uint16), 
+                            max_val=2**(nbit)-1)
+        ssim_clean_2 = tf.image.ssim(dataclean_1[None, ..., None].astype(np.uint16), 
+                             datahr_1[None, ..., None].astype(np.uint16), 
+                             2**(nbit)-1, filter_size=2, 
+                             filter_sigma=1.5, k1=0.01, k2=0.03)
+        psnr_clean_2 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_clean_2, ssim_clean_2)
+
+
+    if vm is None:
+      vminlr=max(0.9*np.median(datalr_1), 0)
+      vmaxlr=np.median(datalr_1)+0.01*(np.max(datalr_1)-np.median(datalr_1))
+
+      vminsr=max(0.9*np.median(datasr), 0)
+      vmaxsr=np.median(datasr_1)+0.01*(np.max(datasr_1)-np.median(datasr_1))
+
+      vminhr=max(0.9*np.median(datahr), 0)
+      vmaxhr=np.median(datalr_1)+0.01*(np.max(datalr_1)-np.median(datalr_1))
+    else:
+      vminlr, vminsr, vminhr = 0, 0, 0
+      vmaxlr, vmaxsr, vmaxhr = vm, vm, vm
+
+    vmaxlr=5000
+    vminlr_2=3000
+
+    xlim1 = np.random.uniform(0.2,0.8)
+    ylim1 = np.random.uniform(0.2,0.8)
+    xlim1, ylim1 = 0.46029491318597404, 0.5403755860037598
+    xlim1, ylim1 = 0.823, 0.695
+
+    dx, dy = 0.12, 0.12, #0.16, 0.16
+
+    xlim2 = 0.6436#np.random.uniform(0.2,0.8)
+    ylim2 = 0.7150#np.random.uniform(0.2,0.8)
+    dx2, dy2 = .14, .14
+
+    ax1 = plt.subplot(2,nsub,nsub+1)
+    ax1.set_yticks([])
+    ax1.set_xticks([])
+    plt.ylabel('1300 MHz PSF', labelpad=40,fontsize=20)    
+    plt.imshow(datalr_1, cmap=cmap, vmax=0.5*vmaxlr, vmin=vminlr, 
+               aspect='auto', extent=[0,1,0,1])
+    plt.xlim(xlim1,xlim1+dx)
+    plt.ylim(ylim1,ylim1+dy)
+    plt.setp(ax1.spines.values(), color='C1')
+
+    ax2 = plt.subplot(2,nsub,nsub+2, sharex=ax1, sharey=ax1)
+    plt.imshow(datasr_1, cmap=cmap, vmax=0.9*vmaxsr, vmin=vminsr, 
+              aspect='auto', extent=[0,1,0,1])
+    plt.xlim(xlim1,xlim1+dx)
+    plt.ylim(ylim1,ylim1+dy)
+    ax1.set_yticks([])
+    ax1.set_xticks([])
+
+    if calcpsnr:
+        print("PSNR")
+#        plt.text(xlim2+0.015, ylim2+0.005, psnr_2, color='C3', fontsize=9, fontweight='bold')
+        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
+        # place a text box in upper left in axes coords
+        plt.text(xlim1+0.01, ylim1+0.005, psnr_2, color='C3', fontsize=9, 
+            fontweight='bold', bbox=props)
+
+    ax5 = plt.subplot(2,nsub,nsub+3,sharex=ax1, sharey=ax1)
+    plt.imshow(datahr_1, cmap=cmap, vmax=0.9*vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
+    plt.xlim(xlim1,xlim1+dx)
+    plt.ylim(ylim1,ylim1+dy)
+    ax1.set_yticks([])
+    ax1.set_xticks([])
+
+    ax3 = plt.subplot(2,nsub,1)
+    ax3.imshow(datalr_2, cmap=cmap, vmax=vmaxlr, vmin=vminlr_2, 
+              aspect='auto', extent=[0,1,0,1])
+#    plt.title('Dirty map \nzoom', color='C1', fontweight='bold', fontsize=15)
+    plt.title('Dirty image', color='C1', fontweight='bold', fontsize=15, pad=20)
+
+    ax3.set_yticks([])
+    ax3.set_xticks([])
+    plt.ylabel('10 MHz PSF', labelpad=40, fontsize=20) 
+    plt.xlim(xlim2,xlim2+dx2)
+    plt.ylim(ylim2,ylim2+dy2)
+
+    ax4 = plt.subplot(2,nsub,2,sharex=ax3, sharey=ax3)
+#    plt.title('NN reconstruction\nzoom ', color='C2', 
+#              fontweight='bold', fontsize=15)
+
+    ax4.imshow(datasr_2, cmap=cmap, 
+              vmax=vmaxsr, vmin=vminsr, aspect='auto', extent=[0,1,0,1])
+
+    plt.suptitle(suptitle, color='C0', fontsize=20)
+
+    ax4.set_yticks([])
+    ax4.set_xticks([])
+    plt.xlim(xlim2,xlim2+dx2)
+    plt.ylim(ylim2,ylim2+dy2)
+
+    plt.title('POLISH\nreconstruction', color='C2', 
+              fontweight='bold', fontsize=15, pad=10)
+
+    if calcpsnr:
+        print("PSNR")
+        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
+        plt.text(xlim2+0.01, ylim2+0.005, psnr_1, color='C3', fontsize=9, fontweight='bold', bbox=props)
+
+    ax6 = plt.subplot(2,nsub,3,sharex=ax3, sharey=ax3)
+#    plt.title('True sky', color='k', fontweight='bold', fontsize=15)      
+    print(datahr_2.shape, datahr_2.sum())  
+    ax6.imshow(datahr_2[:,:], cmap=cmap, 
+               vmax=vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
+    ax6.set_yticks([])
+    ax6.set_xticks([])
+    plt.title('True sky', color='k', fontweight='bold', fontsize=15, pad=20)
+    plt.xlim(xlim2,xlim2+dx2)
+    plt.ylim(ylim2,ylim2+dy2)
+
+    ax7 = plt.subplot(2,nsub,4,sharex=ax3, sharey=ax3)
+    ax7.imshow(dataclean_2, cmap=cmap, 
+               vmax=vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
+
+    plt.xlim(xlim2,xlim2+dx2)
+    plt.ylim(ylim2,ylim2+dy2)
+
+    if calcpsnr:
+        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
+        plt.text(xlim2+0.01, ylim2+0.005, psnr_clean_2, color='C3', fontsize=9, fontweight='bold', bbox=props)
+
+    plt.title('CLEAN', color='C3', fontweight='bold', fontsize=15, pad=20)
+
+    ax8 = plt.subplot(2,nsub,nsub+4,sharex=ax1, sharey=ax1)
+    ax8.imshow(dataclean_1, cmap=cmap, vmax=0.9*vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
+    plt.xlim(xlim1,xlim1+dx)
+    plt.ylim(ylim1,ylim1+dy)
+
+    if calcpsnr:
+        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
+        plt.text(xlim1+0.01, ylim1+0.005, psnr_clean_1, color='C3', fontsize=9, fontweight='bold', bbox=props)
+
+    plt.setp(ax3.spines.values(), color='C1', lw=2)
+    plt.setp(ax6.spines.values(), color='k',  lw=2)
+    plt.setp(ax4.spines.values(), color='C2', lw=2)
+    plt.setp(ax1.spines.values(), color='C1', lw=2)
+    plt.setp(ax5.spines.values(), color='k',  lw=2)
+    plt.setp(ax2.spines.values(), color='C2', lw=2)
+    plt.setp(ax7.spines.values(), color='C3', lw=2)
+    plt.setp(ax8.spines.values(), color='C3', lw=2)
+    plt.tight_layout()
+    plt.show()
+
+def run_plot_example_sr():
+    lf=np.load('./plots/lr-fullband-0818.npy')
+    hf=np.load('./plots/hr-fullband-0818.npy')
+    sf=np.load('./plots/sr-fullband-0818.npy')
+    cf=hf
+
+    l1=np.load('./plots/lr-1chan-0813.npy')
+    h1=np.load('./plots/hr-1chan-0813.npy')
+    s1=np.load('./plots/sr-1chan-0813.npy')
+    c1=h1
+
+    plot_example_sr((lf,l1), (sf,s1), (hf,h1), dataother=(cf,c1), vm=1900, calcpsnr=True, cmap='Greys',)
+#    plt.savefig('example_polish.pdf')
+
+
+def perturbation_figure(hr, psf, model):
+
+    rad_stretch = np.linspace(1., 2.0, 4)
+    psnr_arr,ssim_arr=[],[]
+    for rr in rad_stretch:
+        lr = hr2lr.convolvehr(hr, transform.rescale(psf,rr), nbit=16, rebin=4)
+
+        dsr = (resolve_single(model,lr)).numpy()
+
+        psnr_ = tf.image.psnr(dsr[None, ...,0,None].astype(np.uint16),
+                      hr[None, ..., None].astype(np.uint16),
+                      max_val=2**(nbit)-1).numpy()[0]
+
+        ssim = tf.image.ssim(dsr[None, ...,0, None].astype(np.uint16), 
+                             hr[None, ..., None].astype(np.uint16), 
+                             2**(nbit)-1, filter_size=2, 
+                             filter_sigma=1.5, k1=0.01, k2=0.03)
+        print(rr, psnr_)
+        psnr_arr.append(psnr_)
+        ssim_arr.append(ssim)
+
+    return rad_stretch, ssim_arr, psnr_arr
+
+
+def psf_perturbation_plot():
+    rad_stretch = np.linspace(1., 1.35, 3)
+    nuggets = np.linspace(0, 30.0, 3)
+    psnr_arr,ssim_arr=[],[]
+    kk=0
+    gs = gridspec.GridSpec(3,9)
+    gs.update(wspace=0.05, hspace=0.05)
+    for ii,rr in enumerate(rad_stretch):
+        for jj,nn in enumerate(nuggets):
+            psf_ = transform.rescale(psf,rr)
+            psf_ = elastic_transform(psf_[:,:,None]*np.ones([1,1,3]), alpha=nn,
+                                     sigma=3, alpha_affine=0)[:,:,0]
+
+            n = psf_.shape[0]//2
+            plt.subplot(gs[ii, jj])
+            plt.imshow(np.log(np.abs(psf_[n-28:n+28,n-28:n+28])))#[128-32:128+32,128-32:128+32])))
+            if jj % 4==0:
+                plt.ylabel('%0.1fx' % rr)
+            if jj < 4 and ii==0:
+                plt.title(r'$\gamma=$%0.1f' % nn)
+            plt.xticks([])
+            plt.yticks([])
+            kk+=1
+
+            lr = hr2lr.convolvehr(hr, psf_, nbit=16, rebin=4)
+            dsr = (resolve_single(model,lr)).numpy()
+            ssim = tf.image.ssim(dsr[None, ...,0, None].astype(np.uint16), 
+                                 hr[None, ..., None].astype(np.uint16), 
+                                 2**(nbit)-1, filter_size=2, 
+                                 filter_sigma=1.5, k1=0.01, k2=0.03)
+            psnr_ = tf.image.psnr(dsr[None, ...,0,None].astype(np.uint16),
+                          hr[None, ..., None].astype(np.uint16),
+                          max_val=2**(nbit)-1).numpy()[0]
+            psnr_arr.append(psnr_)
+            ssim_arr.append(ssim)
+
+            plt.subplot(gs[ii, jj+3])
+            plt.imshow(dsr[200:400,400:600,0], vmax=hr.max()*0.01)
+            plt.axis('off')
+
+    psnr_arr = np.array(psnr_arr).reshape(3,3)
+    ssim_arr = np.array(ssim_arr).reshape(3,3)
+
+    ax = plt.subplot(gs[:3, 6:9])
+    immy = ax.imshow(psnr_arr, cmap='RdBu')
+    plt.axis('off')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(immy,cax=cax,label='PSNR')
+
+        # psnr_ = tf.image.psnr(dsr[None, ...,0,None].astype(np.uint16),
+        #               hr[None, ..., None].astype(np.uint16),
+        #               max_val=2**(nbit)-1).numpy()[0]
+
+
+
+
+
 
 
 
