@@ -71,7 +71,7 @@ def gaussian2D(coords,  # x and y coordinates for each image.
 
     G = amplitude * np.exp(-0.5*np.matmul(np.matmul(mat_coords[:, :, np.newaxis, :],
                                                     mat_cov_inv),
-                                          mat_coords[..., np.newaxis])) + offset
+                                          mat_cofords[..., np.newaxis])) + offset
     return G.squeeze()
 
 def normalize_data(data, nbit=16):
@@ -85,7 +85,7 @@ def normalize_data(data, nbit=16):
     return data
 
 def convolvehr(data, kernel, plotit=False, 
-               rebin=4, norm=True, nbit=8, noise=True):
+               rebin=4, norm=True, nbit=16, noise=True):
     if len(data.shape)==3:
         kernel = kernel[..., None]
         ncolor = 1
@@ -94,7 +94,9 @@ def convolvehr(data, kernel, plotit=False,
     
     if noise:
 #        dataLR += 10*np.random.chisquare(5,dataLR.shape)
-        data_noise = data + np.random.normal(0,1,data.shape)
+        data_noise = data + np.random.normal(0,5,data.shape)
+    else:
+        data_noise = data
 
     dataLR = signal.fftconvolve(data_noise, kernel, mode='same')
 
@@ -138,7 +140,8 @@ def convolvehr(data, kernel, plotit=False,
         plt.imshow(kernel[...,0])
         plt.title('Kernel / PSF', fontsize=20)
         plt.show()
-    return dataLR
+
+    return dataLR, data_noise
 
 def create_LR_image(fl, kernel, fdirout=None, 
                     pointsrcs=False, plotit=False, 
@@ -233,9 +236,9 @@ def create_LR_image(fl, kernel, fdirout=None,
         else:
             kernel_ = kernel
 
-        dataLR = convolvehr(data, kernel_, plotit=plotit, 
-                            rebin=rebin, norm=norm, nbit=nbit, 
-                            noise=True)
+        dataLR, data_noise = convolvehr(data, kernel_, plotit=plotit, 
+                                        rebin=rebin, norm=norm, nbit=nbit, 
+                                        noise=True)
 
         data = normalize_data(data, nbit=nbit)
         dataLR = normalize_data(dataLR, nbit=nbit)
@@ -253,6 +256,7 @@ def create_LR_image(fl, kernel, fdirout=None,
 
         if pointsrcs or sky:
             fnoutHR = fdirout + fn.split('/')[-1][:-4] + '.png'
+            fnoutHRnoise = fdirout + fn.split('/')[-1][:-4] + 'noise.png'
 
             if nbit==8:
                 if save_img:
@@ -262,10 +266,11 @@ def create_LR_image(fl, kernel, fdirout=None,
             elif nbit==16:
                 if save_img:
                     cv2.imwrite(fnoutHR, data.astype(np.uint16))
+                    cv2.imwrite(fnoutHRnoise, data_noise.astype(np.uint16))
                 else:
                     np.save(fnoutHR, data)
 
-        del dataLR, data
+        del dataLR, data, data_noise
  
 if __name__=='__main__':
     # Example usage:
@@ -359,10 +364,6 @@ if __name__=='__main__':
         fdirVALIDCMS = '/scratch/imaging/projects/dsa2000-sr/super-resolution/images-temp/valid/'
         os.system('scp %s cms-imaging:%s' % (fdiroutTRAIN+'/*.png', fdirTRAINCMS))
         os.system('scp %s cms-imaging:%s' % (fdiroutVALID+'/*.png', fdirVALIDCMS))
-        
-
-
-
 
 
 

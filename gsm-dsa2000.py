@@ -1,3 +1,5 @@
+import sys 
+
 from pygdsm import GlobalSkyModel
 import matplotlib.pyplot as plt
 import numpy as np
@@ -99,14 +101,17 @@ def plot_interp(m,w):
 
 
 if __name__=='__main__':
+	npatches = int(sys.argv[1])
 	# generate gsm and write to disk
 	generate_gsm()
-	# generate simulated map with spherical harmonics scrambled
-	map_syn = generate_sim(plot=True,inner_scale=2.)
-	# make wcs for cutout
-	w = create_wcs()
-	# make cutout
-	m = interp_sim(map_syn,w)
-	# plot
-	plot_interp(m,w)
+	for ii in range(npatches):
+		# generate simulated map with spherical harmonics scrambled
+		map_syn = generate_sim(plot=True,inner_scale=2.)
+		# make wcs for cutout
+		w = create_wcs()
+		# make cutout	
+		m = interp_sim(map_syn,w)
+		np.save('%d'%ii, m)
+		# plot
+		#plot_interp(m,w)
 

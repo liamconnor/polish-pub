@@ -8,6 +8,27 @@ from skimage import draw
 from astropy.io import fits
 from typing import Tuple, List, Optional
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+ from scipy.ndimage import gaussian_filter
+
+plt.rcParams.update({
+                    'font.size': 12,
+                    'font.family': 'serif',
+                    'axes.labelsize': 14,
+                    'axes.titlesize': 15,
+                    'xtick.labelsize': 12,
+                    'ytick.labelsize': 12,
+                    'xtick.direction': 'in',
+                    'ytick.direction': 'in',
+                    'xtick.top': True,
+                    'ytick.right': True,
+                    'lines.linewidth': 0.5,
+                    'lines.markersize': 5,
+                    'legend.fontsize': 14,
+                    'legend.borderaxespad': 0,
+                    'legend.frameon': False,
+                    'legend.loc': 'lower right'})
+
+colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
 
 def get_psf_stats(fn, extent_deg=0.25, pixel_scale=0.5):
     if fn.endswith('npy'):
@@ -72,25 +93,6 @@ def get_psf_stats_txt(fn, extent_deg, pixel_scale=0.5):
 #     plt.legend(['1chan','radial RMS','radial maximum'])
 #     plt.show()
 
-plt.rcParams.update({
-                    'font.size': 12,
-                    'font.family': 'serif',
-                    'axes.labelsize': 14,
-                    'axes.titlesize': 15,
-                    'xtick.labelsize': 12,
-                    'ytick.labelsize': 12,
-                    'xtick.direction': 'in',
-                    'ytick.direction': 'in',
-                    'xtick.top': True,
-                    'ytick.right': True,
-                    'lines.linewidth': 0.5,
-                    'lines.markersize': 5,
-                    'legend.fontsize': 14,
-                    'legend.borderaxespad': 0,
-                    'legend.frameon': False,
-                    'legend.loc': 'lower right'})
-
-colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
 
 def plot_simulated_sky():
     galsize = np.random.gamma(2.25,1.,10000) * 0.5 
@@ -560,9 +562,10 @@ def run_plot_example_sr():
     l1=np.load('./plots/lr-1chan-0813.npy')
     h1=np.load('./plots/hr-1chan-0813.npy')
     s1=np.load('./plots/sr-1chan-0813.npy')
-    c1=h1
+    c1=np.load('./plots/cl-1chan-0813.npy')
 
-    plot_example_sr((lf,l1), (sf,s1), (hf,h1), dataother=(cf,c1), vm=1900, calcpsnr=True, cmap='Greys',)
+    plot_example_sr((lf,l1), (sf,s1), (hf,h1), dataother=(cf,c1), 
+                     vm=1900, calcpsnr=True, cmap='Greys',)
 #    plt.savefig('example_polish.pdf')
 
 
@@ -588,7 +591,6 @@ def perturbation_figure(hr, psf, model):
         ssim_arr.append(ssim)
 
     return rad_stretch, ssim_arr, psnr_arr
-
 
 def psf_perturbation_plot():
     rad_stretch = np.linspace(1., 1.35, 3)
@@ -643,6 +645,259 @@ def psf_perturbation_plot():
         # psnr_ = tf.image.psnr(dsr[None, ...,0,None].astype(np.uint16),
         #               hr[None, ..., None].astype(np.uint16),
         #               max_val=2**(nbit)-1).numpy()[0]
+def restore_CLEAN(fnfits_model, bmaj=3.56, 
+                  bmin=3.51818, pa=-15.0404, pixel_scale=0.5):
+    """ 
+    fnfits_model : CLEAN components fits file
+    bmaj : arcsec
+    bmin : arcsec 
+    pa : degrees
+    """
+    f = fits.open(fnfits_model)
+    data = f[0].data[0,0]
+    try:
+        pixel_scale = abs(f[0].header['CDELT1'])*3600
+    except:
+        pixel_scale = pixel_scale
+    print("Using %0.2f" % pixel_scale)
+
+    sigma_x = 0.5*(bmaj+bmin)/2.355 / pixel_scale
+    sigma_y = 0.5*(bmaj+bmin)/2.355 / pixel_scale
+    data_restored = gaussian_filter(data, (sigma_x, sigma_y))
+
+
+    return data_restored
+
+
+def gaussian2D(coords,  # x and y coordinates for each image.
+                  amplitude=1,  # Highest intensity in image.
+                  xo=0,  # x-coordinate of peak centre.
+                  yo=0,  # y-coordinate of peak centre.
+                  sigma_x=1,  # Standard deviation in x.
+                  sigma_y=1,  # Standard deviation in y.
+                  rho=0,  # Correlation coefficient.
+                  offset=0,
+                  rot=0):  # rotation in degrees.
+    x, y = coords
+
+    rot = np.deg2rad(rot)
+
+    x_ = np.cos(rot)*x - y*np.sin(rot)
+    y_ = np.sin(rot)*x + np.cos(rot)*y
+
+    xo = float(xo)
+    yo = float(yo)
+
+    xo_ = np.cos(rot)*xo - yo*np.sin(rot) 
+    yo_ = np.sin(rot)*xo + np.cos(rot)*yo
+
+    x,y,xo,yo = x_,y_,xo_,yo_
+
+    # Create covariance matrix
+    mat_cov = [[sigma_x**2, rho * sigma_x * sigma_y],
+               [rho * sigma_x * sigma_y, sigma_y**2]]
+    mat_cov = np.asarray(mat_cov)
+    # Find its inverse
+    mat_cov_inv = np.linalg.inv(mat_cov)
+
+    # PB We stack the coordinates along the last axis
+    mat_coords = np.stack((x - xo, y - yo), axis=-1)
+
+    G = amplitude * np.exp(-0.5*np.matmul(np.matmul(mat_coords[:, :, np.newaxis, :],
+                                                    mat_cov_inv),
+                                          mat_coords[..., np.newaxis])) + offset
+    return G.squeeze()
+
+def lobe_gal_plot():
+    lr = np.load('./plots/ska-fun-mid-dirty.npy')
+    sr = np.load('./plots/ska-fun-mid-SR.npy')
+    hr = np.load('./plots/ska-fun-mid-true.npy')
+    hr = hr2lr.normalize_data(hr)
+
+    et = [0,1,1,0]
+
+    figure()
+    subplot(131)
+    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.075)
+    xlim(0.2, 0.8)
+    ylim(0.8, 0.2)
+    axis('off')
+    title('Dirty image', c='C1')
+
+    subplot(132)
+    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.1, extent=et)
+    xlim(0.2, 0.8)
+    ylim(0.8, 0.2)
+    title('POLISH reconstruction', c='C2')
+    axis('off')
+    
+    subplot(133)
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
+    xlim(0.2, 0.8)
+    ylim(0.8, 0.2)
+    axis('off')
+    title('True sky', c='k')
+    tight_layout()
+
+    figure()
+    subplot(131)
+    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.08)
+    xlim(0.46, 0.52)
+    ylim(0.55, 0.46)
+    axis('off')
+
+    subplot(132)
+    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.11, extent=et)
+    xlim(0.46, 0.52)
+    ylim(0.55, 0.46)
+    axis('off')
+    
+    subplot(133)
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
+    xlim(0.46, 0.52)
+    ylim(0.55, 0.46)
+    axis('off')
+    tight_layout()
+
+def lobe_gal_plot():
+    lr = np.load('./plots/ska-fun-mid-dirty.npy')
+    sr = np.load('./plots/ska-fun-mid-SR.npy')
+    hr = np.load('./plots/ska-fun-mid-true.npy')
+    hr = hr2lr.normalize_data(hr)
+
+    et = [0,1,1,0]
+
+    figure()
+    subplot(131)
+    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.075)
+    xlim(0.2, 0.8)
+    ylim(0.8, 0.2)
+    axis('off')
+    title('Dirty image', c='C1')
+
+    subplot(132)
+    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.1, extent=et)
+    xlim(0.2, 0.8)
+    ylim(0.8, 0.2)
+    title('POLISH reconstruction', c='C2')
+    axis('off')
+    
+    subplot(133)
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
+    xlim(0.2, 0.8)
+    ylim(0.8, 0.2)
+    axis('off')
+    title('True sky', c='k')
+    tight_layout()
+
+    figure()
+    subplot(131)
+    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.08)
+    xlim(0.46, 0.52)
+    ylim(0.55, 0.46)
+    axis('off')
+
+    subplot(132)
+    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.11, extent=et)
+    xlim(0.46, 0.52)
+    ylim(0.55, 0.46)
+    axis('off')
+    
+    subplot(133)
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
+    xlim(0.46, 0.52)
+    ylim(0.55, 0.46)
+    axis('off')
+    tight_layout()
+
+
+def vla_mosaic():
+    d = np.load('plots/vla-dirty-image.npy')
+    d = hr2lr.normalize_data(d)
+    arr = np.zeros([8192, 8192])
+    for ii in range(4):
+        for jj in range(4):
+            dsr = resolve_single(model, d[1024*ii:1024*(ii+1), 1024*jj:1024*(jj+1)]).numpy()
+            arr[2*1024*ii:2*1024*(ii+1), 2*1024*jj:2*1024*(jj+1)] = dsr
+
+
+def plot_vla_polish(cleanmin=200, polishmin=-800):
+    lr = np.load('./plots/vla-dirty-plotregion.npy')
+    cr = np.load('./plots/vla-CLEAN10k-plotregion.npy')
+    sr = np.load('./plots/vla-polish-plotregion.npy')
+
+    cr = hr2lr.normalize_data(cr)
+    lr = hr2lr.normalize_data(lr)
+
+    et = [0,1,1,0]
+
+    #figure()
+    fig, ax = plt.subplots()
+    plt.subplot(131)
+    plt.imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.075)
+#    rect = patches.Rectangle((0.28, 0.09), .15, 0.2,  linewidth=3, edgecolor='C3', facecolor='none')
+#    ax.add_patch(rect)
+    axis('off')
+    title('Dirty image', c='C3', fontsize=28)
+    xlim(0.13, .77)
+    ylim(0.85, 0.1)
+
+    subplot(132)
+    imshow(sr, cmap='afmhot', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
+    title('POLISH reconstruction', c='C2', fontsize=28)
+    axis('off')
+    xlim(0.13, .77)
+    ylim(0.85, 0.1)
+    
+    subplot(133)
+    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot', vmin=cleanmin)
+    xlim(0.13, .77)
+    ylim(0.85, 0.1)
+    axis('off')
+    title('CLEAN', c='C0', fontsize=28)
+    tight_layout()
+
+    figure()
+    subplot(131)
+    imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.08)
+    xlim(0.28, 0.28+.15)
+    ylim(0.09+0.2, 0.09)
+    axis('off')
+
+    subplot(132)
+    imshow(sr, cmap='afmhot', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
+    xlim(0.28, 0.28+.15)
+    ylim(0.09+0.2, 0.09)
+    axis('off')
+    
+    subplot(133)
+    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot',vmin=cleanmin)
+    xlim(0.28, 0.28+.15)
+    ylim(0.09+0.2, 0.09)
+    axis('off')
+    tight_layout()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
