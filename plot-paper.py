@@ -8,7 +8,7 @@ from skimage import draw
 from astropy.io import fits
 from typing import Tuple, List, Optional
 from mpl_toolkits.axes_grid1 import make_axes_locatable
- from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 plt.rcParams.update({
                     'font.size': 12,
@@ -646,7 +646,7 @@ def psf_perturbation_plot():
         #               hr[None, ..., None].astype(np.uint16),
         #               max_val=2**(nbit)-1).numpy()[0]
 def restore_CLEAN(fnfits_model, bmaj=3.56, 
-                  bmin=3.51818, pa=-15.0404, pixel_scale=0.5):
+                  bmin=3.51818, pa=-15.0404, pixel_scale=0.5, fnout=None):
     """ 
     fnfits_model : CLEAN components fits file
     bmaj : arcsec
@@ -655,16 +655,21 @@ def restore_CLEAN(fnfits_model, bmaj=3.56,
     """
     f = fits.open(fnfits_model)
     data = f[0].data[0,0]
+    header = f[0].header
     try:
         pixel_scale = abs(f[0].header['CDELT1'])*3600
     except:
         pixel_scale = pixel_scale
     print("Using %0.2f" % pixel_scale)
 
-    sigma_x = 0.5*(bmaj+bmin)/2.355 / pixel_scale
-    sigma_y = 0.5*(bmaj+bmin)/2.355 / pixel_scale
+    sigma_x = (bmaj+bmin)/2.355 / pixel_scale
+    sigma_y = (bmaj+bmin)/2.355 / pixel_scale
     data_restored = gaussian_filter(data, (sigma_x, sigma_y))
 
+    if fnout is not None:
+        hdu = fits.PrimaryHDU(data_restored, header=header)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(fnout)
 
     return data_restored
 
@@ -708,31 +713,35 @@ def gaussian2D(coords,  # x and y coordinates for each image.
                                           mat_coords[..., np.newaxis])) + offset
     return G.squeeze()
 
-def lobe_gal_plot():
-    lr = np.load('./plots/ska-fun-mid-dirty.npy')
-    sr = np.load('./plots/ska-fun-mid-SR.npy')
-    hr = np.load('./plots/ska-fun-mid-true.npy')
-    hr = hr2lr.normalize_data(hr)
+def lobe_gal_plot(model=None):
+    if model is None:
+        lr = np.load('./plots/ska-fun-mid-dirty.npy')
+        sr = np.load('./plots/ska-fun-mid-SR.npy')
+        hr = np.load('./plots/ska-fun-mid-true.npy')
+        hr = hr2lr.normalize_data(hr)
+    else:
+        pass
+
 
     et = [0,1,1,0]
 
     figure()
     subplot(131)
-    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.075)
+    imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.13)
     xlim(0.2, 0.8)
     ylim(0.8, 0.2)
     axis('off')
     title('Dirty image', c='C1')
 
     subplot(132)
-    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.1, extent=et)
+    imshow(sr, cmap='afmhot', vmax=sr.max()*0.1, extent=et)
     xlim(0.2, 0.8)
     ylim(0.8, 0.2)
     title('POLISH reconstruction', c='C2')
     axis('off')
     
     subplot(133)
-    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot')
     xlim(0.2, 0.8)
     ylim(0.8, 0.2)
     axis('off')
@@ -741,74 +750,24 @@ def lobe_gal_plot():
 
     figure()
     subplot(131)
-    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.08)
+    imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.15)
     xlim(0.46, 0.52)
     ylim(0.55, 0.46)
     axis('off')
 
     subplot(132)
-    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.11, extent=et)
+    imshow(sr, cmap='afmhot', vmax=sr.max()*0.11, extent=et)
     xlim(0.46, 0.52)
     ylim(0.55, 0.46)
     axis('off')
     
     subplot(133)
-    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot')
     xlim(0.46, 0.52)
     ylim(0.55, 0.46)
     axis('off')
     tight_layout()
 
-def lobe_gal_plot():
-    lr = np.load('./plots/ska-fun-mid-dirty.npy')
-    sr = np.load('./plots/ska-fun-mid-SR.npy')
-    hr = np.load('./plots/ska-fun-mid-true.npy')
-    hr = hr2lr.normalize_data(hr)
-
-    et = [0,1,1,0]
-
-    figure()
-    subplot(131)
-    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.075)
-    xlim(0.2, 0.8)
-    ylim(0.8, 0.2)
-    axis('off')
-    title('Dirty image', c='C1')
-
-    subplot(132)
-    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.1, extent=et)
-    xlim(0.2, 0.8)
-    ylim(0.8, 0.2)
-    title('POLISH reconstruction', c='C2')
-    axis('off')
-    
-    subplot(133)
-    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
-    xlim(0.2, 0.8)
-    ylim(0.8, 0.2)
-    axis('off')
-    title('True sky', c='k')
-    tight_layout()
-
-    figure()
-    subplot(131)
-    imshow(lr, cmap='afmhot_u',extent=et, vmax=lr.max()*.08)
-    xlim(0.46, 0.52)
-    ylim(0.55, 0.46)
-    axis('off')
-
-    subplot(132)
-    imshow(sr, cmap='afmhot_u', vmax=sr.max()*0.11, extent=et)
-    xlim(0.46, 0.52)
-    ylim(0.55, 0.46)
-    axis('off')
-    
-    subplot(133)
-    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_u')
-    xlim(0.46, 0.52)
-    ylim(0.55, 0.46)
-    axis('off')
-    tight_layout()
 
 
 def vla_mosaic():
@@ -880,10 +839,296 @@ def plot_vla_polish(cleanmin=200, polishmin=-800):
 
 
 
+def create_fits_header():
+    hdu = fits.PrimaryHDU()
+    hdr = hdu.header 
+    hdr['BITPIX'] = -32
+    hdr['NAXIS'] = 4
+    hdr['NAXIS1'] = self._nx 
+    hdr['NAXIS2'] = self._ny 
+    hdr['NAXIS3'] = self._nchan
+    hdr['NAXIS4'] = 1
+    hdr['OBJECT']  = 'source  '                                                            
+    hdr['CTYPE1']  = 'RA---SIN'
+    hdr['CRPIX1']  = self._nx//2
+    hdr['CRVAL1']  = 0.
+    hdr['CDELT1']  = -self._pixel_size/3600 
+    hdr['CUNIT1']  = 'deg     '                                                            
+    hdr['CTYPE2']  = 'DEC--SIN'
+    hdr['CRPIX2']  = self._ny//2                                                  
+    hdr['CRVAL2']  = 37.1298333333333                                                  
+    hdr['CDELT2']  = self._pixel_size/3600                                                   
+    hdr['CUNIT2']  = 'deg     '                                                            
+    hdr['CTYPE3']  = 'FREQ    '
+    hdr['CRPIX3']  = 1.                                                  
+    hdr['CRVAL3']  = 1e9*(0.5*(self._freqmin+self._freqmax))
+    hdr['CDELT3']  = self._delta_freq
+    hdr['CUNIT3']  = 'Hz      '
+    hdr['CTYPE4']  = 'STOKES  '                                                            
+    hdr['CRPIX4']  =  1.                                                  
+    hdr['CRVAL4']  =  1.                                                  
+    hdr['CDELT4']  =  1.                                                  
+    hdr['CUNIT4']  = '        '
+    self.fits_header = hdr
+    return hdr 
+
+def write_data_fits(data, header, fnout):
+    hdu = fits.PrimaryHDU(data, header=header)
+    hdul = fits.HDUList([hdu])
+    hdul.writeto(fnout)
 
 
 
 
+import sys 
+
+import numpy as np
+import matplotlib.pylab as plt
+import glob
+from astropy.io import fits
+
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+def readcat(fncat):
+    #   1 NUMBER          Running object number
+    #   2 FLUX_AUTO       Flux within a Kron-like elliptical aperture     [count]
+    #   3 FLUXERR_AUTO    RMS error for AUTO flux                         [count]
+    #   4 X_IMAGE         Object position along x                         [pixel]
+    #   5 Y_IMAGE         Object position along y                         [pixel]
+    #   6 A_IMAGE         Profile RMS along major axis                    [pixel]
+    #   7 B_IMAGE         Profile RMS along minor axis                    [pixel]
+    #   8 THETA_IMAGE     Position angle (CCW/x)                          [deg]
+    #   9 ELONGATION      A_IMAGE/B_IMAGE
+    #  10 ELLIPTICITY     1 - B_IMAGE/A_IMAGE
+    #  11 FLAGS           Extraction flags
+    param_arr = np.genfromtxt(fncat)
+    number = param_arr[:,0]
+    flux_auto = param_arr[:,1]
+    flux_err_auto = param_arr[:,2]
+    x_image = param_arr[:,3]
+    y_image = param_arr[:,4]
+    A_image = param_arr[:,5]
+    B_image = param_arr[:,6]
+    theta_image = param_arr[:,7]
+    el = param_arr[:,9]
+
+    return number, flux_auto, x_image, y_image, A_image, B_image, theta_image, el, flux_err_auto
+
+def plot_sky(fn, fncat, sizevar='flux'):
+    param_arr = readcat(fncat)
+    print(len(param_arr))
+    number, flux_auto, x_image, y_image, A_image, B_image, theta_image, el = param_arr
+    if fn.endswith('.fits'):
+        data = fits.open(fn)
+        data = data[0].data
+    elif fn.endswith('.npy'):
+        data = np.load(fn)
+    elif fn.endswith('.png'):
+        data = load_image(fn)
+    else:
+        print("Expected fits, npy, or png.")
+        return
+    plt.figure()
+    plt.imshow(data, vmax=data.max()*0.025)
+
+    if sizevar=='flux':
+        plt.scatter(x_image, y_image, flux_auto/flux_auto.max()*100, 
+                marker='o',edgecolor='red',facecolors='none')
+    elif sizevar=='A_image':
+        plt.scatter(x_image, y_image, A_image/A_image.max()*30, 
+                marker='o',edgecolor='red',facecolors='none')
+
+
+#    plt.show()
+    return data, param_arr
+
+def plot_comparison(param_arr_l):
+    plt.figure(figsize=(7,7))
+    # Loop through True, SR, LR
+    alph = [1, 1, 0.75]
+    colors = ['C0', 'C1', 'C3']
+    for ii in [1,0,2]:
+        number, flux_auto, x_image, y_image, A_image, B_image, theta_image, el = param_arr_l[ii]
+        plt.subplot(221)
+        plt.hist(A_image, bins=200, log=True, alpha=alph[ii], range=(0,50), density=True, color=colors[ii])
+        plt.xlim(-0.5,15)
+        plt.ylabel('fraction')
+        plt.xlabel('semi-major (pixels)')
+        plt.subplot(222)
+        plt.hist(B_image, bins=200, log=True, alpha=alph[ii], range=(0,50), density=True,color=colors[ii])
+        plt.xlim(-0.5,10)
+        plt.xlabel('semi-minor (pixels)')
+        plt.subplot(223)
+        plt.hist(flux_auto, bins=200, log=True, alpha=alph[ii], density=True,color=colors[ii])
+        plt.xlabel('flux')
+        plt.ylabel('fraction')
+        plt.subplot(224)
+        plt.hist(el, bins=200, log=True, alpha=alph[ii], density=True,color=colors[ii])
+        plt.xlabel('elongation')
+    plt.subplot(223)
+    plt.legend(['True', 'NN Recon', 'Dirty'])
+    plt.show()
+
+def gather(fnhr, fnsr, fnlr=None):
+    number_sr, flux_auto_sr, x_image_sr, y_image_sr, A_image_sr, B_image_sr, theta_image_sr, el_sr = readcat(fnsr)
+    number_hr, flux_auto_hr, x_image_hr, y_image_hr, A_image_hr, B_image_hr, theta_image_hr, el_hr = readcat(fnhr)
+
+    if fnlr is not None:
+        number_lr, flux_auto_lr, x_image_lr, y_image_lr, A_image_lr, B_image_lr, theta_image_lr, el_lr = readcat(fnlr)
+        x_image_lr += 61.
+        y_image_lr += 61
+        indarr_lr = []
+
+    param_arr_all = []
+    indarr_hr = []
+
+    if fnlr is None:
+        for ii in range(x_image_hr.shape[0]):
+            r_sr = np.sqrt((y_image_hr[ii]-y_image_sr)**2 + (y_image_hr[ii]-x_image_sr)**2)
+            ind_sr = np.argmin(r_sr)
+            indarr_hr.append(ind_sr)
+            if r_sr.min()<10.0:
+                param_arr_all.append([A_image_hr[ii], B_image_hr[ii], flux_auto_hr[ii], 
+                                      A_image_sr[ind_sr], B_image_sr[ind_sr], flux_auto_sr[ind_sr]])
+
+        param_arr_all = np.concatenate(param_arr_all).reshape(-1, 6)
+
+    elif fnlr is not None:
+        for ii in range(x_image_hr.shape[0]):
+            r_hr = np.sqrt((y_image_hr[ii]-y_image_sr)**2 + (y_image_hr[ii]-x_image_sr)**2)
+            if fnlr is not None:
+                r_lr = np.sqrt((y_image_hr[ii]-y_image_lr)**2 + (y_image_hr[ii]-x_image_lr)**2)
+            ind_hr = np.argmin(r_hr)
+            ind_lr = np.argmin(r_lr)
+            indarr_lr.append(ind_hr)
+            indarr_hr.append(ind_lr)
+            print(ii, r_hr.min(), r_lr.min())
+
+            if r_hr.min()<25.0:# and r_lr.min()<5.0:
+                print(ii)
+                param_arr_all.append([A_image_hr[ii], B_image_hr[ii], flux_auto_hr[ii], 
+                                      A_image_sr[ind_hr], B_image_sr[ind_hr], flux_auto_sr[ind_hr], 
+                                      A_image_lr[ind_lr], B_image_lr[ind_lr], flux_auto_lr[ind_lr],])
+
+        param_arr_all = np.concatenate(param_arr_all).reshape(-1, 9)
+
+    return param_arr_all
+#         # ax1.errorbar([x_image[ii]], [y_image[ii]], yerr=[0.25], fmt="o", color="black", ms=0.1, zorder=1)
+#         # ax1.add_artist(Ellipse((x_image[ii], y_image[ii]), A_image[ii], B_image[ii], angle=0*theta_image[ii], facecolor="C1", edgecolor="C1",zorder=2))
+#         # ax1.errorbar([x_imagesr[ind]], [y_imagesr[ind]], yerr=[0.25], fmt="o", color="C2", ms=0.1, zorder=1)
+#         # ax1.add_artist(Ellipse((x_imagesr[ind], y_imagesr[ind]), A_imagesr[ind], B_imagesr[ind], angle=0*theta_imagesr[ind], facecolor="C0",edgecolor="C0",zorder=2,alpha=0.75))
+
+def match(fn1, fn2, pixel_scale_arcsec=0.5):
+    p1 = readcat(fn1)
+    number_1, flux_auto_1, x_image_1, y_image_1, A_image_1, B_image_1, theta_image_1, el_1, flux_auto_err_1 = p1
+    p2 = readcat(fn2)
+    number_2, flux_auto_2, x_image_2, y_image_2, A_image_2, B_image_2, theta_image_2, el_2, flux_auto_err_2 = p2
+
+    pixel_scale = pixel_scale_arcsec / 3600.
+
+    ra1, dec1 = x_image_1 * pixel_scale, y_image_1 * pixel_scale
+    ra2, dec2 = x_image_2 * pixel_scale, y_image_2 * pixel_scale
+
+    c = SkyCoord(ra=ra1*u.degree, dec=dec1*u.degree)
+    catalog = SkyCoord(ra=ra2*u.degree, dec=dec2*u.degree)
+    idx, d2d, d3d = c.match_to_catalog_sky(catalog)
+
+    return ra1, dec1, ra2, dec2, p1, p2, idx
+
+def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5, 
+             psf='AJ-15x60s-4000chan-0.5arcsec-3x/psf/psf.npy'):
+    
+    fn1 = 'plots/0808.cat'
+    fn2 = 'plots/0808SR.cat'
+    fn3 = 'plots/0808CLEAN-50k-maj.cat'
+
+    x = np.linspace(0,8,int(8.0/pixel_scale_arcsec))
+
+    if psf is not None:
+        from scipy.interpolate import interp1d
+        psf = np.load(psf)
+        psf = psf[512, 512:512+16]
+        f = interp1d(x, psf, kind='cubic')
+
+    ra1, dec1, ra2, dec2, p1, p2, idx = match(fn1, fn2, pixel_scale_arcsec=pixel_scale_arcsec)
+
+    number_1, flux_auto_1, x_image_1, y_image_1, A_image_1, B_image_1, theta_image_1, el_1, flux_auto_err_1 = p1
+    number_2, flux_auto_2, x_image_2, y_image_2, A_image_2, B_image_2, theta_image_2, el_2, flux_auto_err_2 = p2
+
+    if fn3 is not None:
+        ra1, dec1, ra3, dec3, p1, p3, idx3 = match(fn1, fn3, pixel_scale_arcsec=pixel_scale_arcsec)        
+        number_3, flux_auto_3, x_image_3, y_image_3, A_image_3, B_image_3, theta_image_3, el_3, flux_auto_err_3 = p3
+
+    snr_2 = flux_auto_2/flux_auto_err_2
+    snr_3 = flux_auto_3/flux_auto_err_3
+
+    figure(figsize=(7,5))
+
+    subplot(121)
+    scatter(A_image_1*pixel_scale_arcsec, A_image_2[idx]*pixel_scale_arcsec, np.log(snr_2[idx]), c = '#95D840FF', alpha=0.75)
+#    scatter(A_image_1*pixel_scale_arcsec, A_image_2[idx]*pixel_scale_arcsec, np.log10(snr_2[idx]), color=c, alpha=0.75)
+    xlim(0.5, 7)
+    xlabel(r"True  $\theta_A$  (arcseconds) ")
+    ylabel(r"$\hat{\theta}_A$  (arcseconds)")
+    ylim(0, 7.5)
+
+    subplot(122)
+    scatter(B_image_1*pixel_scale_arcsec, B_image_2[idx]*pixel_scale_arcsec, np.log(snr_2[idx]), c = '#95D840FF', alpha=0.85)
+    xlabel(r"True  $\theta_B$  (arcseconds) ")
+    ylabel(r"$\hat{\theta}_B$  (arcseconds)")
+    xlim(0.5, 7)
+    ylim(0, 7.5)
+
+
+    if fn3 is not None:
+        subplot(121)
+        scatter(A_image_1*pixel_scale_arcsec, A_image_3[idx3]*pixel_scale_arcsec, np.log(snr_2[idx]), c = 'k', alpha=0.5)
+    #    scatter(A_image_1*pixel_scale_arcsec, A_image_2[idx]*pixel_scale_arcsec, np.log10(snr_2[idx]), color=c, alpha=0.75)
+        xlim(0.5, 7)
+        ylim(0, 7.5)
+
+        if psf is not None:
+            xx = np.linspace(0, 8, 100)
+            plot(xx, f(xx)*6.5, alpha=0.25, lw=2, c='C3')
+
+        subplot(122)
+        scatter(B_image_1*pixel_scale_arcsec, B_image_3[idx3]*pixel_scale_arcsec, np.log(snr_2[idx]), c='k', alpha=0.5)
+
+        if psf is not None:
+            plot(xx, f(xx)*6.5, alpha=0.25, lw=2, c='C3')
+
+        xlim(0.5, 7)
+        ylim(0, 7.5)
+
+        legend(['PSF/kernel', 'POLISH', 'CLEAN'], loc=1)
+
+    subplot(121)
+    plot(x, x, '--', alpha=0.6)
+    subplot(122)
+    plot(x, x, '--', alpha=0.6)
+
+    tight_layout()
+
+plt.rcParams.update({
+                    'font.size': 12,
+                    'font.family': 'serif',
+                    'axes.labelsize': 14,
+                    'axes.titlesize': 15,
+                    'xtick.labelsize': 12,
+                    'ytick.labelsize': 12,
+                    'xtick.direction': 'in',
+                    'ytick.direction': 'in',
+                    'xtick.top': True,
+                    'ytick.right': True,
+                    'lines.linewidth': 0.5,
+                    'lines.markersize': 5,
+                    'legend.fontsize': 14,
+                    'legend.borderaxespad': 0,
+                    'legend.frameon': False,
+                    'legend.loc': 'lower right'})
+
+colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
 
 
 
