@@ -9,6 +9,7 @@ from astropy.io import fits
 from typing import Tuple, List, Optional
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
+from data_augmentation import elastic_transform
 
 plt.rcParams.update({
                     'font.size': 12,
@@ -183,7 +184,7 @@ def plot_array(fncfg, fnpsf1, fnpsf2):
     plt.ylim(-300, 300)
     ax3.set_xlabel(r'$m$ (arcseconds)')
     ax3.set_ylabel(r'$l$ (arcseconds)')
-    ax3.set_title('log(|PSF|)\nfull-band 15 minutes', weight='bold')
+#    ax3.set_title('log(|PSF|)\nfull-band 15 minutes', weight='bold')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(immy,cax=cax)
@@ -357,10 +358,12 @@ def plot_radial_psf(fnlr, fnhr, fnpsf, fn_model):
 
 def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
             cmap='Greys', suptitle=None, 
-            fnfigout='test.pdf', vm=None, nbit=16, 
-            calcpsnr=True, vmsr=None, vmc=None):
+            fnfigout='test.pdf', nbit=16, 
+            calcpsnr=True, vml=None, vms=None, vmh=None, vmc=None, 
+            clean_box='', polish_box=''):
 
-    fig=plt.figure(figsize=(11.75,8.8))
+    props = dict(facecolor='k', alpha=0., edgecolor='k')
+    fig=plt.figure(figsize=(13,7.5))
 
     datalr_1, datalr_2 = datalr 
     datahr_1, datahr_2 = datahr 
@@ -385,7 +388,8 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
                              datahr_1[None, ..., None].astype(np.uint16), 
                              2**(nbit)-1, filter_size=2, 
                              filter_sigma=1.5, k1=0.01, k2=0.03)
-        psnr_2 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_2, ssim_2)
+#        psnr_2 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_2, ssim_2)
+        psnr_2 = "PSNR = %0.1f\nSSIM = %0.4f" % (psnr_2, ssim_2)
 
         psnr_1 = tf.image.psnr(datasr_2[None, ...,None].astype(np.uint16), 
                              datahr_2[None, ..., None].astype(np.uint16), 
@@ -394,105 +398,156 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
                              datahr_2[None, ..., None].astype(np.uint16), 
                              2**(nbit)-1, filter_size=2, 
                              filter_sigma=1.5, k1=0.01, k2=0.03)
-        psnr_1 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_1, ssim_1)
+#        psnr_1 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_1, ssim_1)
+        psnr_1 = "PSNR = %0.1f\nSSIM = %0.4f" % (psnr_1, ssim_1)
 
-        psnr_clean_1 = tf.image.psnr(dataclean_1[None, ...,None].astype(np.uint16), 
-                             datahr_1[None, ..., None].astype(np.uint16), 
-                            max_val=2**(nbit)-1)
-        ssim_clean_1 = tf.image.ssim(dataclean_2[None, ..., None].astype(np.uint16), 
-                             datahr_2[None, ..., None].astype(np.uint16), 
-                             2**(nbit)-1, filter_size=2, 
-                             filter_sigma=1.5, k1=0.01, k2=0.03)
-        psnr_clean_1 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_clean_1, ssim_clean_1)
+        if nsub==4:
+#            dataclean_1[dataclean_1<np.median(dataclean_1)] = 0
 
-        psnr_clean_2 = tf.image.psnr(dataclean_1[None, ...,None].astype(np.uint16), 
-                             datahr_1[None, ..., None].astype(np.uint16), 
-                            max_val=2**(nbit)-1)
-        ssim_clean_2 = tf.image.ssim(dataclean_1[None, ..., None].astype(np.uint16), 
-                             datahr_1[None, ..., None].astype(np.uint16), 
-                             2**(nbit)-1, filter_size=2, 
-                             filter_sigma=1.5, k1=0.01, k2=0.03)
-        psnr_clean_2 = "       1.5'' - \nPSNR = %0.1f\nSSIM = %0.4f" % (psnr_clean_2, ssim_clean_2)
+            psnr_clean_1 = tf.image.psnr(dataclean_2[None, ...,None].astype(np.uint16), 
+                                 datahr_1[None, ..., None].astype(np.uint16), 
+                                max_val=2**(nbit)-1)
+            ssim_clean_1 = tf.image.ssim(dataclean_2[None, ..., None].astype(np.uint16), 
+                                 datahr_2[None, ..., None].astype(np.uint16), 
+                                 2**(nbit)-1, filter_size=2, 
+                                 filter_sigma=1.5, k1=0.01, k2=0.03)
+            psnr_clean_1 = "PSNR = %0.1f\nSSIM = %0.4f" % (psnr_clean_1, ssim_clean_1)
+
+            psnr_clean_2 = tf.image.psnr(dataclean_1[None, ...,None].astype(np.uint16), 
+                                 datahr_1[None, ..., None].astype(np.uint16), 
+                                max_val=2**(nbit)-1)
+            ssim_clean_2 = tf.image.ssim(dataclean_1[None, ..., None].astype(np.uint16), 
+                                 datahr_1[None, ..., None].astype(np.uint16), 
+                                 2**(nbit)-1, filter_size=2, 
+                                 filter_sigma=1.5, k1=0.01, k2=0.03)
+            psnr_clean_2 = "PSNR = %0.1f\nSSIM = %0.4f" % (psnr_clean_2, ssim_clean_2)
 
 
-    if vm is None:
-      vminlr=max(0.9*np.median(datalr_1), 0)
-      vmaxlr=np.median(datalr_1)+0.01*(np.max(datalr_1)-np.median(datalr_1))
-
-      vminsr=max(0.9*np.median(datasr), 0)
-      vmaxsr=np.median(datasr_1)+0.01*(np.max(datasr_1)-np.median(datasr_1))
-
-      vminhr=max(0.9*np.median(datahr), 0)
-      vmaxhr=np.median(datalr_1)+0.01*(np.max(datalr_1)-np.median(datalr_1))
-    else:
-      vminlr, vminsr, vminhr = 0, 0, 0
-      vmaxlr, vmaxsr, vmaxhr = vm, vm, vm
-
-    vmaxlr=5000
-    vminlr_2=3000
+    if vml is not None:
+        vminlr_1, vmaxlr_1, vminlr_2, vmaxlr_2 = vml
+    if vms is not None:
+        vminsr_1, vmaxsr_1, vminsr_2, vmaxsr_2 = vms
+    if vmh is not None:
+        vminhr_1, vmaxhr_1, vminhr_2, vmaxhr_2 = vmh
+    if vmc is not None:
+        vmincr_1, vmaxcr_1, vmincr_2, vmaxcr_2 = vmc
 
     xlim1 = np.random.uniform(0.2,0.8)
     ylim1 = np.random.uniform(0.2,0.8)
-    xlim1, ylim1 = 0.46029491318597404, 0.5403755860037598
-    xlim1, ylim1 = 0.823, 0.695
+    xlim1, ylim1 = 0., 0,#0.58#0.46029491318597404, 0.5403755860037598
 
-    dx, dy = 0.12, 0.12, #0.16, 0.16
-
-    xlim2 = 0.6436#np.random.uniform(0.2,0.8)
-    ylim2 = 0.7150#np.random.uniform(0.2,0.8)
-    dx2, dy2 = .14, .14
+    dx, dy = 1., 1.#0.12, 0.12, #0.16, 0.16
+    b, a, d, c = 230, 330, 230+180, 330+180
+    a1, b1, c1, d1 = 0.12,  0.72, 0.233, .833
+    xlim2 = 0#0.6436#np.random.uniform(0.2,0.8)
+    ylim2 = 0#0.7150#np.random.uniform(0.2,0.8)
+    dx2, dy2 = 1,1#0.21,0.21#.14, .14
 
     ax1 = plt.subplot(2,nsub,nsub+1)
     ax1.set_yticks([])
     ax1.set_xticks([])
-    plt.ylabel('1300 MHz PSF', labelpad=40,fontsize=20)    
-    plt.imshow(datalr_1, cmap=cmap, vmax=0.5*vmaxlr, vmin=vminlr, 
+    plt.ylabel('10 MHz PSF', labelpad=20,fontsize=20)    
+    plt.imshow(datalr_1, cmap=cmap, vmax=vmaxlr_1, vmin=vminlr_1, 
                aspect='auto', extent=[0,1,0,1])
     plt.xlim(xlim1,xlim1+dx)
     plt.ylim(ylim1,ylim1+dy)
     plt.setp(ax1.spines.values(), color='C1')
+    ax1.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C3", fc="None"))
 
-    ax2 = plt.subplot(2,nsub,nsub+2, sharex=ax1, sharey=ax1)
-    plt.imshow(datasr_1, cmap=cmap, vmax=0.9*vmaxsr, vmin=vminsr, 
+    inset_ax = inset_axes(ax1,
+                          width="45%", # width = 30% of parent_bbox
+                          height="45%", # height : 1 inch
+                          loc=3)
+    
+    inset_ax.imshow(datalr_1[a//4:c//4, b//4:d//4], cmap=cmap, 
+                    vmax=vmaxlr_1, vmin=vminlr_1,extent=[0,1,0,1])
+    inset_ax.set_yticks([])
+    inset_ax.set_xticks([])
+    inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C3", fc="None"))
+
+    ax2 = plt.subplot(2,nsub,nsub+3, sharex=ax1, sharey=ax1)
+    plt.imshow(datasr_1, cmap=cmap, vmax=vmaxsr_1, vmin=vminsr_1, 
               aspect='auto', extent=[0,1,0,1])
     plt.xlim(xlim1,xlim1+dx)
     plt.ylim(ylim1,ylim1+dy)
-    ax1.set_yticks([])
-    ax1.set_xticks([])
+    ax2.set_yticks([])
+    ax2.set_xticks([])
+    ax2.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C2", fc="None"))
+    plt.text(0.5, 0.85, polish_box[1], color='white', fontsize=18,
+                 fontweight='bold', bbox=props)
+
+    inset_ax = inset_axes(ax2,
+                          width="45%", # width = 30% of parent_bbox
+                          height="45%", # height : 1 inch
+                          loc=3)
+    
+    inset_ax.imshow(datasr_2[a:c, b:d], cmap=cmap, 
+                    vmax=vmaxsr_2, vmin=vminsr_2,extent=[0,1,0,1])
+    inset_ax.set_yticks([])
+    inset_ax.set_xticks([])
+    inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C2", fc="None"))
 
     if calcpsnr:
         print("PSNR")
 #        plt.text(xlim2+0.015, ylim2+0.005, psnr_2, color='C3', fontsize=9, fontweight='bold')
-        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
+#        props = dict(boxstyle='', facecolor='white', alpha=0.25, edgecolor='white')
+        props = dict(facecolor='white', alpha=0.5, edgecolor='white')
         # place a text box in upper left in axes coords
-        plt.text(xlim1+0.01, ylim1+0.005, psnr_2, color='C3', fontsize=9, 
+        plt.text(xlim1+0.01, ylim1+0.01, psnr_2, color='C3', fontsize=9, 
             fontweight='bold', bbox=props)
 
-    ax5 = plt.subplot(2,nsub,nsub+3,sharex=ax1, sharey=ax1)
-    plt.imshow(datahr_1, cmap=cmap, vmax=0.9*vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
+    ax5 = plt.subplot(2,nsub,nsub+4,sharex=ax1, sharey=ax1)
+    plt.imshow(datahr_1, cmap=cmap, vmax=vmaxhr_1, vmin=vminhr_1, aspect='auto', extent=[0,1,0,1])
     plt.xlim(xlim1,xlim1+dx)
     plt.ylim(ylim1,ylim1+dy)
-    ax1.set_yticks([])
-    ax1.set_xticks([])
+    ax5.set_yticks([])
+    ax5.set_xticks([])
+    ax5.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="grey", fc="None"))
 
-    ax3 = plt.subplot(2,nsub,1)
-    ax3.imshow(datalr_2, cmap=cmap, vmax=vmaxlr, vmin=vminlr_2, 
+
+    inset_ax = inset_axes(ax5,
+                          width="45%", # width = 30% of parent_bbox
+                          height="45%", # height : 1 inch
+                          loc=3)
+    
+    inset_ax.imshow(datahr_1[a:c, b:d], cmap=cmap, 
+                    vmax=vmaxhr_1, vmin=vminhr_1,extent=[0,1,0,1])
+    inset_ax.set_yticks([])
+    inset_ax.set_xticks([])
+    inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="grey", fc="None"))
+
+    ax3 = plt.subplot(2,nsub,1,sharex=ax1, sharey=ax1)
+    ax3.imshow(datalr_2, cmap=cmap, vmax=vmaxlr_2, vmin=vminlr_2, 
               aspect='auto', extent=[0,1,0,1])
 #    plt.title('Dirty map \nzoom', color='C1', fontweight='bold', fontsize=15)
-    plt.title('Dirty image', color='C1', fontweight='bold', fontsize=15, pad=20)
+    plt.title('Dirty image', color='C3', fontsize=30, pad=20)
 
     ax3.set_yticks([])
     ax3.set_xticks([])
-    plt.ylabel('10 MHz PSF', labelpad=40, fontsize=20) 
+    plt.ylabel('1300 MHz PSF', labelpad=20, fontsize=20) 
     plt.xlim(xlim2,xlim2+dx2)
     plt.ylim(ylim2,ylim2+dy2)
+    ax3.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C3", fc="None"))
 
-    ax4 = plt.subplot(2,nsub,2,sharex=ax3, sharey=ax3)
+
+    inset_ax = inset_axes(ax3,
+                          width="45%", # width = 30% of parent_bbox
+                          height="45%", # height : 1 inch
+                          loc=3)
+    
+    inset_ax.imshow(datalr_2[a//4:c//4, b//4:d//4], cmap=cmap, 
+                    vmax=vmaxlr_1, vmin=vminlr_1,extent=[0,1,0,1])
+    inset_ax.set_yticks([])
+    inset_ax.set_xticks([])
+    inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C3", fc="None"))
+#    inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C3", fc="None"))
+
+    ax4 = plt.subplot(2,nsub,3,sharex=ax1, sharey=ax1)
 #    plt.title('NN reconstruction\nzoom ', color='C2', 
 #              fontweight='bold', fontsize=15)
 
     ax4.imshow(datasr_2, cmap=cmap, 
-              vmax=vmaxsr, vmin=vminsr, aspect='auto', extent=[0,1,0,1])
+              vmax=vmaxsr_2, vmin=vminsr_2, aspect='auto', extent=[0,1,0,1])
 
     plt.suptitle(suptitle, color='C0', fontsize=20)
 
@@ -502,56 +557,139 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
     plt.ylim(ylim2,ylim2+dy2)
 
     plt.title('POLISH\nreconstruction', color='C2', 
-              fontweight='bold', fontsize=15, pad=10)
-
+              fontsize=22, pad=10)
+    plt.text(0.5, 0.85, polish_box[0], color='white', fontsize=18,
+                 fontweight='bold', bbox=props)
     if calcpsnr:
         print("PSNR")
-        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
-        plt.text(xlim2+0.01, ylim2+0.005, psnr_1, color='C3', fontsize=9, fontweight='bold', bbox=props)
+        props = dict(facecolor='white', alpha=0.5, edgecolor='white')
+        plt.text(xlim2+0.01, ylim2+0.01, psnr_1, color='C3', fontsize=9, fontweight='bold', bbox=props)
 
-    ax6 = plt.subplot(2,nsub,3,sharex=ax3, sharey=ax3)
-#    plt.title('True sky', color='k', fontweight='bold', fontsize=15)      
+    ax3.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C3", fc="None"))
+
+
+    inset_ax = inset_axes(ax4,
+                          width="45%", # width = 30% of parent_bbox
+                          height="45%", # height : 1 inch
+                          loc=3)
+    
+    inset_ax.imshow(datasr_2[a:c, b:d], cmap=cmap, 
+                    vmax=vmaxsr_2, vmin=vminsr_2,extent=[0,1,0,1])
+    inset_ax.set_yticks([])
+    inset_ax.set_xticks([])
+    inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C2", fc="None"))
+
+    ax6 = plt.subplot(2,nsub,4,sharex=ax1, sharey=ax1)
     print(datahr_2.shape, datahr_2.sum())  
     ax6.imshow(datahr_2[:,:], cmap=cmap, 
-               vmax=vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
+               vmax=vmaxhr_2, vmin=vminhr_2, aspect='auto', extent=[0,1,0,1])
     ax6.set_yticks([])
     ax6.set_xticks([])
-    plt.title('True sky', color='k', fontweight='bold', fontsize=15, pad=20)
+    plt.title('True sky', color='k', fontsize=30, pad=20)
     plt.xlim(xlim2,xlim2+dx2)
     plt.ylim(ylim2,ylim2+dy2)
 
-    ax7 = plt.subplot(2,nsub,4,sharex=ax3, sharey=ax3)
-    ax7.imshow(dataclean_2, cmap=cmap, 
-               vmax=vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
+    inset_ax = inset_axes(ax6,
+                          width="45%", # width = 30% of parent_bbox
+                          height="45%", # height : 1 inch
+                          loc=3)
+    
+    inset_ax.imshow(datahr_2[a:c, b:d], cmap=cmap, 
+                    vmax=vmaxlr_1, vmin=vminlr_1,extent=[0,1,0,1])
+    inset_ax.set_yticks([])
+    inset_ax.set_xticks([])
+    inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="grey", fc="None"))
 
-    plt.xlim(xlim2,xlim2+dx2)
-    plt.ylim(ylim2,ylim2+dy2)
 
-    if calcpsnr:
-        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
-        plt.text(xlim2+0.01, ylim2+0.005, psnr_clean_2, color='C3', fontsize=9, fontweight='bold', bbox=props)
+    if nsub==4:
+        ax7 = plt.subplot(2,nsub,2,sharex=ax1, sharey=ax1)
+        ax7.imshow(dataclean_2, cmap=cmap, 
+               vmax=vmaxcr_1, vmin=vmincr_1, aspect='auto', extent=[0,1,0,1])
+        plt.text(0.5, 0.85, clean_box[0], color='white', fontsize=18,
+                 fontweight='bold', bbox=props)
+        plt.xlim(xlim2,xlim2+dx2)
+        plt.ylim(ylim2,ylim2+dy2)
 
-    plt.title('CLEAN', color='C3', fontweight='bold', fontsize=15, pad=20)
+        if calcpsnr:
+            props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
+            plt.text(xlim2+0.01, ylim2+0.005, psnr_clean_2, color='C3', fontsize=9, fontweight='bold', bbox=props)
 
-    ax8 = plt.subplot(2,nsub,nsub+4,sharex=ax1, sharey=ax1)
-    ax8.imshow(dataclean_1, cmap=cmap, vmax=0.9*vmaxhr, vmin=vminhr, aspect='auto', extent=[0,1,0,1])
-    plt.xlim(xlim1,xlim1+dx)
-    plt.ylim(ylim1,ylim1+dy)
+        plt.title('CLEAN', color='C0', fontsize=30, pad=20)
+        ax7.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C0", fc="None"))
 
-    if calcpsnr:
-        props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
-        plt.text(xlim1+0.01, ylim1+0.005, psnr_clean_1, color='C3', fontsize=9, fontweight='bold', bbox=props)
+        inset_ax = inset_axes(ax7,
+                              width="45%", # width = 30% of parent_bbox
+                              height="45%", # height : 1 inch
+                              loc=3)
+        inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C0", fc="None"))
 
-    plt.setp(ax3.spines.values(), color='C1', lw=2)
-    plt.setp(ax6.spines.values(), color='k',  lw=2)
-    plt.setp(ax4.spines.values(), color='C2', lw=2)
-    plt.setp(ax1.spines.values(), color='C1', lw=2)
-    plt.setp(ax5.spines.values(), color='k',  lw=2)
-    plt.setp(ax2.spines.values(), color='C2', lw=2)
-    plt.setp(ax7.spines.values(), color='C3', lw=2)
-    plt.setp(ax8.spines.values(), color='C3', lw=2)
+
+        inset_ax.imshow(dataclean_2[a:c, b:d], cmap=cmap, 
+                        vmax=vmaxlr_1, vmin=vminlr_1,extent=[0,1,0,1])
+        inset_ax.set_yticks([])
+        inset_ax.set_xticks([])
+
+
+        ax8 = plt.subplot(2,nsub,nsub+2,sharex=ax1, sharey=ax1)
+        ax8.imshow(dataclean_1, cmap=cmap, vmax=vmaxcr_2, vmin=vmincr_2, aspect='auto', extent=[0,1,0,1])
+        plt.xlim(xlim1,xlim1+dx)
+        plt.ylim(ylim1,ylim1+dy)
+        ax8.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C0", fc="None"))
+
+
+        if calcpsnr:
+            props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
+            plt.text(xlim1+0.01, ylim1+0.005, psnr_clean_1, color='C3', fontsize=9,  bbox=props)
+    
+        plt.setp(ax7.spines.values(), color='C0', lw=2)
+        plt.setp(ax8.spines.values(), color='C0', lw=2)
+
+
+        plt.text(0.5, 0.85, clean_box[1], color='white', fontsize=18,
+                 fontweight='bold', bbox=props)
+
+        inset_ax = inset_axes(ax8,
+                              width="45%", # width = 30% of parent_bbox
+                              height="45%", # height : 1 inch
+                              loc=3)
+        inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C0", fc="None"))
+
+
+        inset_ax.imshow(dataclean_1[a:c, b:d], cmap=cmap, 
+                        vmax=vmaxlr_1, vmin=vminlr_1,extent=[0,1,0,1])
+        inset_ax.set_yticks([])
+        inset_ax.set_xticks([])
+
+
+    plt.setp(ax3.spines.values(), color='C3', lw=3)
+    plt.setp(ax6.spines.values(), color='grey', lw=3)
+    plt.setp(ax4.spines.values(), color='C2', lw=3)
+    plt.setp(ax1.spines.values(), color='C3', lw=3)
+    plt.setp(ax5.spines.values(), color='grey', lw=3)
+    plt.setp(ax2.spines.values(), color='C2', lw=3)
+
     plt.tight_layout()
     plt.show()
+
+def save_same_data():
+    hr = load_image('1chan-29mar21/DIV2K_valid_HR/0844.png')
+    lr1chan = load_image('1chan-29mar21/DIV2K_valid_LR_bicubic/X4/0844x4.png')
+    psf = np.load('fullband29mar21/psf/0713-0.18-.npy')
+    lrfull = hr2lr.convolvehr(hr, psf, nbit=16, rebin=4)
+
+    modelfull = wdsr_b(scale=4, num_res_blocks=32)
+    modelfull.load_weights('./weights/fullband-29-march.h5')
+
+    model1chan = wdsr_b(scale=4, num_res_blocks=32)
+    model1chan.load_weights('weights/1chan-29-march.h5')
+
+    sr1chan = (resolve_single(model1chan, lr1chan)).numpy()[:,:,0]
+    srfull = (resolve_single(modelfull, lrfull)).numpy()[:,:,0]
+
+    srfull = srfull[1000-1875//2:1000+1875//2+1,1000-1875//2:1000+1875//2+1]
+    sr1chan = sr1chan[1000-1875//2:1000+1875//2+1,1000-1875//2:1000+1875//2+1]
+    lrfull = lrfull[1000-1875//2:1000+1875//2+1,1000-1875//2:1000+1875//2+1]
+
 
 def run_plot_example_sr():
     lf=np.load('./plots/lr-fullband-0818.npy')
@@ -559,15 +697,32 @@ def run_plot_example_sr():
     sf=np.load('./plots/sr-fullband-0818.npy')
     cf=hf
 
+    sf = (fits.open('./fullband29mar21/fits/0860SR.fits'))[0].data
+    hf = (fits.open('./fullband29mar21/fits/0860.fits'))[0].data
+    lf = (fits.open('./fullband29mar21/fits/0860x4.fits'))[0].data        
+    cf = (fits.open('./fullband29mar21/fits/0860.fits'))[0].data
+
     l1=np.load('./plots/lr-1chan-0813.npy')
     h1=np.load('./plots/hr-1chan-0813.npy')
     s1=np.load('./plots/sr-1chan-0813.npy')
     c1=np.load('./plots/cl-1chan-0813.npy')
 
-    plot_example_sr((lf,l1), (sf,s1), (hf,h1), dataother=(cf,c1), 
-                     vm=1900, calcpsnr=True, cmap='Greys',)
-#    plt.savefig('example_polish.pdf')
+    lf = np.load('plots/1chan-29mar21-0844-LR-full.png.npy')
+    hf = np.load('plots/1chan-29mar21-0844-HR.png.npy')
+    sf = np.load('plots/1chan-29mar21-0844-SR-full.png.npy')
 
+    l1 = np.load('plots/1chan-29mar21-0844-LR-1chan.png.npy')
+    h1 = np.load('plots/1chan-29mar21-0844-HR.png.npy')
+    s1 = np.load('plots/1chan-29mar21-0844-SR-1chan.png.npy')
+#    c1 = np.load('')
+#
+    # plot_example_sr((lf,l1), (sf,s1), (hf,h1), dataother=(cf,c1), 
+    #                  vm=1500, calcpsnr=False, cmap='afmhot_10us',)
+    plot_example_sr((lf,lr), (s1,sr), (h1,hf), dataother=(D,D),
+                        calcpsnr=False, cmap='afmhot', 
+                    vml=(-3000, 4000, 1500, 4000), 
+                    vms=(-300, 2500, -300, 2500),
+                    vmh=(-300, 2500, -300, 2500),)
 
 def perturbation_figure(hr, psf, model):
 
@@ -593,6 +748,11 @@ def perturbation_figure(hr, psf, model):
     return rad_stretch, ssim_arr, psnr_arr
 
 def psf_perturbation_plot():
+    fn_model='./weights/fullband-29-march.h5'
+    hr = load_image('fullband29mar21/DIV2K_valid_HR/0809.png')
+    model = wdsr_b(scale=4, num_res_blocks=32)
+    model.load_weights(fn_model)
+
     rad_stretch = np.linspace(1., 1.35, 3)
     nuggets = np.linspace(0, 30.0, 3)
     psnr_arr,ssim_arr=[],[]
@@ -607,7 +767,8 @@ def psf_perturbation_plot():
 
             n = psf_.shape[0]//2
             plt.subplot(gs[ii, jj])
-            plt.imshow(np.log(np.abs(psf_[n-28:n+28,n-28:n+28])))#[128-32:128+32,128-32:128+32])))
+            plt.imshow(np.log(np.abs(psf_[n-28:n+28,n-28:n+28])), vmax=0, vmin=-5.5)#[128-32:128+32,128-32:128+32])))
+
             if jj % 4==0:
                 plt.ylabel('%0.1fx' % rr)
             if jj < 4 and ii==0:
@@ -616,9 +777,9 @@ def psf_perturbation_plot():
             plt.yticks([])
             kk+=1
 
-            lr = hr2lr.convolvehr(hr, psf_, nbit=16, rebin=4)
+            lr = hr2lr.convolvehr(hr, psf_, nbit=16, rebin=4)[0]
             dsr = (resolve_single(model,lr)).numpy()
-            ssim = tf.image.ssim(dsr[None, ...,0, None].astype(np.uint16), 
+            ssim = tf.image.ssim(dsr[None, ..., 0, None].astype(np.uint16), 
                                  hr[None, ..., None].astype(np.uint16), 
                                  2**(nbit)-1, filter_size=2, 
                                  filter_sigma=1.5, k1=0.01, k2=0.03)
@@ -629,7 +790,7 @@ def psf_perturbation_plot():
             ssim_arr.append(ssim)
 
             plt.subplot(gs[ii, jj+3])
-            plt.imshow(dsr[200:400,400:600,0], vmax=hr.max()*0.01)
+            plt.imshow(dsr[200:400,400:600,0], vmax=hr.max()*0.01, cmap='afmhot_10us')
             plt.axis('off')
 
     psnr_arr = np.array(psnr_arr).reshape(3,3)
@@ -669,7 +830,7 @@ def restore_CLEAN(fnfits_model, bmaj=3.56,
     if fnout is not None:
         hdu = fits.PrimaryHDU(data_restored, header=header)
         hdul = fits.HDUList([hdu])
-        hdul.writeto(fnout)
+        hdul.writeto(fnout) 
 
     return data_restored
 
@@ -727,21 +888,21 @@ def lobe_gal_plot(model=None):
 
     figure()
     subplot(131)
-    imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.13)
+    imshow(lr, cmap='afmhot_10us',extent=et, vmax=lr.max()*.13)
     xlim(0.2, 0.8)
     ylim(0.8, 0.2)
     axis('off')
     title('Dirty image', c='C1')
 
     subplot(132)
-    imshow(sr, cmap='afmhot', vmax=sr.max()*0.1, extent=et)
+    imshow(sr, cmap='afmhot_10us', vmax=sr.max()*0.1, extent=et)
     xlim(0.2, 0.8)
     ylim(0.8, 0.2)
     title('POLISH reconstruction', c='C2')
     axis('off')
     
     subplot(133)
-    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot')
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_10us')
     xlim(0.2, 0.8)
     ylim(0.8, 0.2)
     axis('off')
@@ -750,25 +911,214 @@ def lobe_gal_plot(model=None):
 
     figure()
     subplot(131)
-    imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.15)
-    xlim(0.46, 0.52)
-    ylim(0.55, 0.46)
+    imshow(lr, cmap='afmhot_10us',extent=et, vmax=lr.max()*.15)
+    xlim(0.48, 0.525)
+    ylim(0.535, 0.50)
     axis('off')
 
     subplot(132)
-    imshow(sr, cmap='afmhot', vmax=sr.max()*0.11, extent=et)
-    xlim(0.46, 0.52)
-    ylim(0.55, 0.46)
+    imshow(sr, cmap='afmhot_10us', vmax=sr.max()*0.11, extent=et)
+    xlim(0.48, 0.525)
+    ylim(0.535, 0.50)
     axis('off')
     
     subplot(133)
-    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot')
-    xlim(0.46, 0.52)
-    ylim(0.55, 0.46)
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_10us')
+    xlim(0.48, 0.525)
+    ylim(0.535, 0.50)
     axis('off')
     tight_layout()
 
+def lobe_gal_clean():
+    import matplotlib.patches as patches
 
+    lr = np.load('./plots/ska-fun-mid-dirty-625.npy')
+    sr = np.load('./plots/ska-fun-mid-SR-1875.npy')
+    hr = np.load('./plots/ska-fun-mid-true-1875.npy')
+    cr = np.load('./plots/ska-fun-mid-clean-1875.npy')
+    D = cr
+
+    et = [0,1,1,0]
+
+
+    hr = hr2lr.normalize_data(hr)
+    sr = hr2lr.normalize_data(sr)
+    D = hr2lr.normalize_data(D)
+    DD = D - np.median(D)
+    DD[DD<0] = 0
+
+    nbit = 16
+    psnr_clean = tf.image.psnr(DD[None, ...,None].astype(np.uint16),
+                               hr[None, ..., None].astype(np.uint16),
+                               max_val=2**(nbit)-1)
+    psnr_polish = tf.image.psnr(sr[None, ...,None].astype(np.uint16),
+                               hr[None, ..., None].astype(np.uint16),
+                               max_val=2**(nbit)-1)
+
+    ssim_clean = tf.image.ssim(DD[None, ...,None].astype(np.uint16),
+                              hr[None, ..., None].astype(np.uint16),
+                               max_val=2**(nbit)-1)
+    ssim_polish = tf.image.ssim(sr[None, ...,None].astype(np.uint16),
+                               hr[None, ..., None].astype(np.uint16),
+                               max_val=2**(nbit)-1)
+
+    clean_box = "PSNR = %0.1f\nSSIM = %0.3f" % (psnr_clean, ssim_clean)
+    polish_box = "PSNR = %0.1f\nSSIM = %0.3f" % (psnr_polish, ssim_polish)
+
+    figure(figsize=(20,12))
+
+    gs = gridspec.GridSpec(2, 8)
+
+    lr = lr - lr.min()
+    lr = lr / lr.max()
+
+    sr = sr - sr.min()
+    sr = sr / sr.max()
+
+    hr = hr - hr.min()
+    hr = hr / hr.max()
+
+    D = D - D.min()
+    D = D / D.max()
+
+    a,b,c,d = 330, 820, 430, 930
+    ax1 = plt.subplot(gs[0, 0:2])
+    vmx = hr[910:1050, 810:974].max()
+    vmn = hr[910:1050, 810:974].min()
+
+    ax1.imshow(lr**0.85, cmap='afmhot_10us', vmax=vmx, vmin=vmn, )
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((810//3, 910//3), 164//3, 140//3, linewidth=3, edgecolor='C1', facecolor='none')
+    rect2 = patches.Rectangle((a//3, b//3), 100//3, 100//3, linewidth=3, edgecolor='C1', facecolor='none')
+    ax1.add_patch(rect1)
+    ax1.add_patch(rect2)
+    axis('off')
+    title('Dirty image', c='C1', fontsize=31)
+
+
+    ax2 = plt.subplot(gs[0, 4:6])
+    ax2.imshow(sr**0.85, cmap='afmhot_10us', vmax=vmx, vmin=vmn,  )
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((810, 910), 164, 140, linewidth=3, edgecolor='C2', facecolor='none')
+    rect2 = patches.Rectangle((a, b), 100, 100, linewidth=3, edgecolor='C2', facecolor='none')
+    ax2.add_patch(rect1)
+    ax2.add_patch(rect2)
+    title('POLISH reconstruction', c='C2', fontsize=31)
+
+    props = dict(facecolor='k', alpha=0., edgecolor='k')
+#    plt.text(0.35*len(hr), 0.18*len(hr), polish_box, color='white', fontsize=28, 
+#          fontweight='bold', bbox=props)
+
+    ax3 = plt.subplot(gs[0, 6:8])
+    immy = ax3.imshow(hr**0.85, vmax=vmx, vmin=vmn, cmap='afmhot_10us')
+    rect1 = patches.Rectangle((810, 910), 164, 140, linewidth=3, edgecolor='grey', facecolor='none')
+    rect2 = patches.Rectangle((a, b), 100, 100, linewidth=3, edgecolor='grey', facecolor='none')
+    ax3.add_patch(rect1)
+    ax3.add_patch(rect2)
+    #axis('off')
+    title('True sky', c='k', fontsize=31)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(immy,cax=cax)
+
+    ax4 = plt.subplot(gs[0, 2:4])
+    ax4.imshow(D**0.85, vmax=vmx, vmin=0.05, cmap='afmhot_10us')
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((810, 910), 164, 140, linewidth=3, edgecolor='C0', facecolor='none')
+    rect2 = patches.Rectangle((a, b), 100, 100, linewidth=3, edgecolor='C0', facecolor='none')
+    ax4.add_patch(rect1)
+    ax4.add_patch(rect2)
+    axis('off')
+    title('CLEAN reconstruction', c='C0', fontsize=31)
+
+#        plt.text(xlim2+0.015, ylim2+0.005, psnr_2, color='C3', fontsize=9, fontweight='bold')
+#        props = dict(boxstyle='', facecolor='white', alpha=0.25, edgecolor='white')
+
+   # plt.text(0.35*len(hr), 0.18*len(hr), clean_box, color='white', fontsize=28, 
+   #        fontweight='bold', bbox=props)
+
+    lr_ = lr[b//3:d//3, a//3:c//3]
+    sr_ = sr[b:d, a:c]
+    hr_ = hr[b:d, a:c]
+    D_ = D[b:d, a:c]
+
+    lr_ = lr_ - lr_.min()
+    lr_ = lr_ / lr_.max()
+
+    sr_ = sr_ - sr_.min()
+    sr_ = sr_ / sr_.max()
+
+    hr_ = hr_ - hr_.min()
+    hr_ = hr_ / hr_.max()
+
+    D_ = D_ - D_.min()
+    D_ = D_ / D_.max()
+
+    ax5 = plt.subplot(gs[1, 0])
+    imshow(lr_**0.85, cmap='afmhot_10us',extent=et, vmax=0.5, vmin=0, )
+    plt.xticks([])
+    plt.yticks([])
+
+    ax6 = plt.subplot(gs[1, 4])
+    imshow(sr_**0.85, cmap='afmhot_10us', vmax=0.5, vmin=0,  extent=et)
+    plt.xticks([])
+    plt.yticks([])
+    
+    ax7 = plt.subplot(gs[1, 6])
+    imshow(hr_**0.85, vmax=0.5, vmin=0,  extent=et, cmap='afmhot_10us')
+    plt.xticks([])
+    plt.yticks([])
+    
+    ax8 = plt.subplot(gs[1, 2])
+    imshow(D_**0.85, vmax=0.5, vmin=0, extent=et, cmap='afmhot_10us')
+    plt.xticks([])
+    plt.yticks([])
+
+    lr_ = lr[910//3:1050//3, 810//3:974//3]
+    sr_ = sr[910:1050, 810:974]
+    hr_ = hr[910:1050, 810:974]
+    D_ = D[910:1050, 810:974]
+
+    lr_ = lr_ - lr_.min()
+    lr_ = lr_ / lr_.max()
+
+    sr_ = sr_ - sr_.min()
+    sr_ = sr_ / sr_.max()
+
+    hr_ = hr_ - hr_.min()
+    hr_ = hr_ / hr_.max()
+
+    D_ = D_ - D_.min()
+    D_ = D_ / D_.max()
+
+    ax9 = plt.subplot(gs[1, 1])
+    imshow(lr_**0.85, cmap='afmhot_10us',extent=et, vmax=0.5, vmin=0, )
+    plt.xticks([])
+    plt.yticks([])
+
+    ax10 = plt.subplot(gs[1, 5])
+    imshow(sr_**0.85, cmap='afmhot_10us', vmax=0.5, vmin=0,  extent=et)
+    plt.xticks([])
+    plt.yticks([])
+
+    ax11 = plt.subplot(gs[1, 7])
+    imshow(hr_**0.85, vmax=0.5, vmin=0,  extent=et, cmap='afmhot_10us')
+    plt.xticks([])
+    plt.yticks([])
+    
+    ax12 = plt.subplot(gs[1, 3])
+    imshow(D_**0.85, vmax=0.5, vmin=0, extent=et, cmap='afmhot_10us')
+    plt.xticks([])
+    plt.yticks([])
+
+    plt.setp(ax5.spines.values(), color='C1', lw=5)
+    plt.setp(ax9.spines.values(), color='C1', lw=5)
+    plt.setp(ax7.spines.values(), color='grey', alpha=1, lw=5)
+    plt.setp(ax11.spines.values(), color='grey', alpha=1, lw=5)
+    plt.setp(ax6.spines.values(), color='C2', lw=5)
+    plt.setp(ax10.spines.values(), color='C2', lw=5)
+    plt.setp(ax8.spines.values(), color='C0', lw=5)
+    plt.setp(ax12.spines.values(), color='C0', lw=5)
 
 def vla_mosaic():
     d = np.load('plots/vla-dirty-image.npy')
@@ -778,6 +1128,125 @@ def vla_mosaic():
         for jj in range(4):
             dsr = resolve_single(model, d[1024*ii:1024*(ii+1), 1024*jj:1024*(jj+1)]).numpy()
             arr[2*1024*ii:2*1024*(ii+1), 2*1024*jj:2*1024*(jj+1)] = dsr
+
+def plot_vla_polish_2():
+    import matplotlib.patches as patches
+    lr = np.load('./plots/vla-dirty-plotregion.npy')
+    cr = np.load('./plots/vla-CLEAN10k-plotregion.npy')
+    sr2 = np.load('./plots/vla-polish-plotregion.npy')
+    sr = np.load('./plots/vla-polish-plotregion-new.npy')
+
+    D = cr
+
+    et = [0,1,1,0]
+
+
+    lr = hr2lr.normalize_data(lr)
+    sr = hr2lr.normalize_data(sr)
+    D = hr2lr.normalize_data(D)
+
+    figure()
+
+    gs = gridspec.GridSpec(2, 6)
+
+    lr = lr - np.median(lr)
+    lr = lr / lr.max()
+
+    sr = sr - sr.min()
+    sr = sr / sr.max()
+
+    D = D - np.median(D)
+    D = D / D.max()
+
+    a2,b2,c2,d2 = 472, 719, 472+150, 719+150
+    a,b,c,d = 290, 125, 290+150, 125+150
+    ax1 = plt.subplot(gs[0, 0:2])
+    vmx = 0.035
+    vmn = -0.0035
+
+    ax1.imshow(lr, cmap='afmhot_10us', vmax=vmx, vmin=vmn, )
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((a, b), c-a, d-b, linestyle='--',linewidth=3, edgecolor='C1', facecolor='none')
+    rect2 = patches.Rectangle((a2, b2), c2-a2, d2-b2, linewidth=3, edgecolor='C1', facecolor='none')
+    ax1.add_patch(rect1)
+    ax1.add_patch(rect2)
+    axis('off')
+    title('Dirty image', c='C1', fontsize=31)
+
+
+    ax2 = plt.subplot(gs[0, 4:6])
+    ax2.imshow(sr.reshape(-1, 4, len(sr)//4, 4).mean(1).mean(-1), cmap='afmhot_10us', vmax=vmx, vmin=vmn,  )
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((a/2., b/2.), (c-a)/2., (d-b)/2., linestyle='--', linewidth=3, edgecolor='C2', facecolor='none')
+    rect2 = patches.Rectangle((a2/2., b2/2.), (c2-a2)/2., (d2-b2)/2., linewidth=3, edgecolor='C2', facecolor='none')
+    ax2.add_patch(rect1)
+    ax2.add_patch(rect2)
+    axis('off') 
+    title('POLISH reconstruction', c='C2', fontsize=31)
+
+    ax4 = plt.subplot(gs[0, 2:4])
+    ax4.imshow(D, vmax=vmx, vmin=vmn, cmap='afmhot_10us')
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((a, b), c-a, d-b, linestyle='--', linewidth=3, edgecolor='C0', facecolor='none')
+    rect2 = patches.Rectangle((a2, b2), c2-a2, d2-b2, linewidth=3, edgecolor='C0', facecolor='none')
+    ax4.add_patch(rect1)
+    ax4.add_patch(rect2)
+    axis('off')
+    title('CLEAN reconstruction', c='C0', fontsize=31)
+
+    lr_ = lr[b:d, a:c]
+    sr_ = sr[2*b:2*d, 2*a:2*c]
+    D_ = D[b:d, a:c]
+
+    # lr_ = lr_ - lr_.min()
+    # lr_ = lr_ / lr_.max()
+
+    # sr_ = sr_ - sr_.min()
+    # sr_ = sr_ / sr_.max()
+
+    # D_ = D_ - D_.min()
+    # D_ = D_ / D_.max()
+
+    ax5 = plt.subplot(gs[1, 0])
+    imshow(lr_, cmap='afmhot_10us',extent=et, vmax=1.5*vmx, vmin=vmn, )
+    plt.xticks([])
+    plt.yticks([])
+
+    ax6 = plt.subplot(gs[1, 4])
+    imshow(sr_, cmap='afmhot_10us', vmax=1.5*vmx, vmin=vmn,  extent=et)
+    plt.xticks([])
+    plt.yticks([])
+    
+    ax8 = plt.subplot(gs[1, 2])
+    imshow(D_, vmax=1.5*vmx, vmin=vmn, extent=et, cmap='afmhot_10us')
+    plt.xticks([])
+    plt.yticks([])
+
+    lr_ = lr[b2:d2, a2:c2]
+    sr_ = sr[2*b2:2*d2, 2*a2:2*c2]
+    D_ = D[b2:d2, a2:c2]
+
+    ax9 = plt.subplot(gs[1, 1])
+    imshow(lr_, cmap='afmhot_10us',extent=et, vmax=1.5*vmx, vmin=vmn, )
+    plt.xticks([])
+    plt.yticks([])
+
+    ax10 = plt.subplot(gs[1, 5])
+    imshow(sr_, cmap='afmhot_10us', vmax=1.5*vmx, vmin=vmn,  extent=et)
+    plt.xticks([])
+    plt.yticks([])
+    
+    ax12 = plt.subplot(gs[1, 3])
+    imshow(D_, vmax=2.5*vmx, vmin=vmn, extent=et, cmap='afmhot_10us')
+    plt.xticks([])
+    plt.yticks([])
+
+    plt.setp(ax5.spines.values(), color='C1', lw=5, linestyle='--')
+    plt.setp(ax9.spines.values(), color='C1', lw=5, )
+    plt.setp(ax6.spines.values(), color='C2', lw=5, linestyle='--')
+    plt.setp(ax10.spines.values(), color='C2', lw=5, )
+    plt.setp(ax8.spines.values(), color='C0', lw=5, linestyle='--')
+    plt.setp(ax12.spines.values(), color='C0', lw=5)
 
 
 def plot_vla_polish(cleanmin=200, polishmin=-800):
@@ -793,7 +1262,7 @@ def plot_vla_polish(cleanmin=200, polishmin=-800):
     #figure()
     fig, ax = plt.subplots()
     plt.subplot(131)
-    plt.imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.075)
+    plt.imshow(lr, cmap='afmhot_10us',extent=et, vmax=lr.max()*.075)
 #    rect = patches.Rectangle((0.28, 0.09), .15, 0.2,  linewidth=3, edgecolor='C3', facecolor='none')
 #    ax.add_patch(rect)
     axis('off')
@@ -802,14 +1271,14 @@ def plot_vla_polish(cleanmin=200, polishmin=-800):
     ylim(0.85, 0.1)
 
     subplot(132)
-    imshow(sr, cmap='afmhot', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
+    imshow(sr, cmap='afmhot_10us', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
     title('POLISH reconstruction', c='C2', fontsize=28)
     axis('off')
     xlim(0.13, .77)
     ylim(0.85, 0.1)
     
     subplot(133)
-    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot', vmin=cleanmin)
+    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot_10us', vmin=cleanmin)
     xlim(0.13, .77)
     ylim(0.85, 0.1)
     axis('off')
@@ -818,19 +1287,19 @@ def plot_vla_polish(cleanmin=200, polishmin=-800):
 
     figure()
     subplot(131)
-    imshow(lr, cmap='afmhot',extent=et, vmax=lr.max()*.08)
+    imshow(lr, cmap='afmhot_10us',extent=et, vmax=lr.max()*.08)
     xlim(0.28, 0.28+.15)
     ylim(0.09+0.2, 0.09)
     axis('off')
 
     subplot(132)
-    imshow(sr, cmap='afmhot', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
+    imshow(sr, cmap='afmhot_10us', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
     xlim(0.28, 0.28+.15)
     ylim(0.09+0.2, 0.09)
     axis('off')
     
     subplot(133)
-    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot',vmin=cleanmin)
+    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot_10us',vmin=cleanmin)
     xlim(0.28, 0.28+.15)
     ylim(0.09+0.2, 0.09)
     axis('off')
@@ -1019,6 +1488,35 @@ def gather(fnhr, fnsr, fnlr=None):
 #         # ax1.errorbar([x_imagesr[ind]], [y_imagesr[ind]], yerr=[0.25], fmt="o", color="C2", ms=0.1, zorder=1)
 #         # ax1.add_artist(Ellipse((x_imagesr[ind], y_imagesr[ind]), A_imagesr[ind], B_imagesr[ind], angle=0*theta_imagesr[ind], facecolor="C0",edgecolor="C0",zorder=2,alpha=0.75))
 
+from skimage import transform
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+def readcat(fncat):
+    #   1 NUMBER          Running object number
+    #   2 FLUX_AUTO       Flux within a Kron-like elliptical aperture     [count]
+    #   3 FLUXERR_AUTO    RMS error for AUTO flux                         [count]
+    #   4 X_IMAGE         Object position along x                         [pixel]
+    #   5 Y_IMAGE         Object position along y                         [pixel]
+    #   6 A_IMAGE         Profile RMS along major axis                    [pixel]
+    #   7 B_IMAGE         Profile RMS along minor axis                    [pixel]
+    #   8 THETA_IMAGE     Position angle (CCW/x)                          [deg]
+    #   9 ELONGATION      A_IMAGE/B_IMAGE
+    #  10 ELLIPTICITY     1 - B_IMAGE/A_IMAGE
+    #  11 FLAGS           Extraction flags
+    param_arr = np.genfromtxt(fncat)
+    number = param_arr[:,0]
+    flux_auto = param_arr[:,1]
+    flux_err_auto = param_arr[:,2]
+    x_image = param_arr[:,3]
+    y_image = param_arr[:,4]
+    A_image = param_arr[:,5]
+    B_image = param_arr[:,6]
+    theta_image = param_arr[:,7]
+    el = param_arr[:,9]
+
+    return number, flux_auto, x_image, y_image, A_image, B_image, theta_image, el, flux_err_auto
+
 def match(fn1, fn2, pixel_scale_arcsec=0.5):
     p1 = readcat(fn1)
     number_1, flux_auto_1, x_image_1, y_image_1, A_image_1, B_image_1, theta_image_1, el_1, flux_auto_err_1 = p1
@@ -1038,7 +1536,8 @@ def match(fn1, fn2, pixel_scale_arcsec=0.5):
 
 def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5, 
              psf='AJ-15x60s-4000chan-0.5arcsec-3x/psf/psf.npy'):
-    
+    pixel_scale_arcsec=0.5
+    psf='AJ-15x60s-4000chan-0.5arcsec-3x/psf/psf.npy'
     fn1 = 'plots/0808.cat'
     fn2 = 'plots/0808SR.cat'
     fn3 = 'plots/0808CLEAN-50k-maj.cat'
@@ -1069,21 +1568,23 @@ def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5,
     scatter(A_image_1*pixel_scale_arcsec, A_image_2[idx]*pixel_scale_arcsec, np.log(snr_2[idx]), c = '#95D840FF', alpha=0.75)
 #    scatter(A_image_1*pixel_scale_arcsec, A_image_2[idx]*pixel_scale_arcsec, np.log10(snr_2[idx]), color=c, alpha=0.75)
     xlim(0.5, 7)
-    xlabel(r"True  $\theta_A$  (arcseconds) ")
-    ylabel(r"$\hat{\theta}_A$  (arcseconds)")
+    xlabel(r"True  $\theta_A$  (arcseconds)", fontsize=18)
+    ylabel(r"$\hat{\theta}_A$  (arcseconds)", fontsize=18)
     ylim(0, 7.5)
 
     subplot(122)
     scatter(B_image_1*pixel_scale_arcsec, B_image_2[idx]*pixel_scale_arcsec, np.log(snr_2[idx]), c = '#95D840FF', alpha=0.85)
-    xlabel(r"True  $\theta_B$  (arcseconds) ")
-    ylabel(r"$\hat{\theta}_B$  (arcseconds)")
+    xlabel(r"True  $\theta_B$  (arcseconds) ",  fontsize=18)
+    ylabel(r"$\hat{\theta}_B$  (arcseconds)",  fontsize=18)
     xlim(0.5, 7)
     ylim(0, 7.5)
+
+    text(1, 6, 'Semi-major axis', fontsize=14)
 
 
     if fn3 is not None:
         subplot(121)
-        scatter(A_image_1*pixel_scale_arcsec, A_image_3[idx3]*pixel_scale_arcsec, np.log(snr_2[idx]), c = 'k', alpha=0.5)
+        scatter(A_image_1*pixel_scale_arcsec, A_image_3[idx3]*pixel_scale_arcsec, np.log(snr_2[idx]), c = 'C0', alpha=0.5)
     #    scatter(A_image_1*pixel_scale_arcsec, A_image_2[idx]*pixel_scale_arcsec, np.log10(snr_2[idx]), color=c, alpha=0.75)
         xlim(0.5, 7)
         ylim(0, 7.5)
@@ -1093,7 +1594,7 @@ def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5,
             plot(xx, f(xx)*6.5, alpha=0.25, lw=2, c='C3')
 
         subplot(122)
-        scatter(B_image_1*pixel_scale_arcsec, B_image_3[idx3]*pixel_scale_arcsec, np.log(snr_2[idx]), c='k', alpha=0.5)
+        scatter(B_image_1*pixel_scale_arcsec, B_image_3[idx3]*pixel_scale_arcsec, np.log(snr_2[idx]), c='C0', alpha=0.5)
 
         if psf is not None:
             plot(xx, f(xx)*6.5, alpha=0.25, lw=2, c='C3')
@@ -1107,6 +1608,7 @@ def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5,
     plot(x, x, '--', alpha=0.6)
     subplot(122)
     plot(x, x, '--', alpha=0.6)
+    text(1, 6, 'Semi-minor axis', fontsize=14)
 
     tight_layout()
 
@@ -1131,9 +1633,21 @@ plt.rcParams.update({
 colors1 = ['k', '#482677FF', '#238A8DDF', '#95D840FF']
 
 
+def make_fig3():
+    hf=np.load('./plots/hr-fullband-0818.npy')
+    for ii in range(1):
+        #lr = load_image('1chan-may17-0.5arcsec-3x-blob-distortpsf/DIV2K_valid_LR_bicubic/X3/080%dx3.png'%(ii+1))
+        #hr = load_image('1chan-may17-0.5arcsec-3x-blob-distortpsf/DIV2K_valid_HR/080%d.png'%(ii+1))
+        lr = hr2lr.convolvehr(hf, psf1, rebin=3, noise=True)[0]
+        lr = hr2lr.normalize_data(lr)
+        sr = (resolve_single(model, lr)).numpy()[:,:,0]
+        lrf =  hr2lr.convolvehr(hf, psf, rebin=3, noise=True)[0]
+        lrf = hr2lr.normalize_data(lrf)
+        srf = (resolve_single(modelf, lrf)).numpy()[:,:,0]
 
-
-
+    plot_example_sr((lrf,lr), (srf*4.8/6,sr), (hf,hf),
+                    calcpsnr=False, cmap='afmhot_10us', vml=(-3000, 4000, 1500, 4000), 
+                    vms=(-300, 2500, -300, 2500), vmh=(-300, 2500, -300, 2500),)
 
 
 
