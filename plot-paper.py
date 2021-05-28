@@ -455,8 +455,8 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
     ax1.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C3", fc="None"))
 
     inset_ax = inset_axes(ax1,
-                          width="45%", # width = 30% of parent_bbox
-                          height="45%", # height : 1 inch
+                          width="60%", # width = 30% of parent_bbox
+                          height="60%", # height : 1 inch
                           loc=3)
     
     inset_ax.imshow(datalr_1[a//4:c//4, b//4:d//4], cmap=cmap, 
@@ -473,12 +473,13 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
     ax2.set_yticks([])
     ax2.set_xticks([])
     ax2.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C2", fc="None"))
+
     plt.text(0.5, 0.85, polish_box[1], color='white', fontsize=18,
                  fontweight='bold', bbox=props)
 
     inset_ax = inset_axes(ax2,
-                          width="45%", # width = 30% of parent_bbox
-                          height="45%", # height : 1 inch
+                          width="60%", # width = 30% of parent_bbox
+                          height="60%", # height : 1 inch
                           loc=3)
     
     inset_ax.imshow(datasr_2[a:c, b:d], cmap=cmap, 
@@ -486,6 +487,7 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
     inset_ax.set_yticks([])
     inset_ax.set_xticks([])
     inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C2", fc="None"))
+
 
     if calcpsnr:
         print("PSNR")
@@ -506,8 +508,8 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
 
 
     inset_ax = inset_axes(ax5,
-                          width="45%", # width = 30% of parent_bbox
-                          height="45%", # height : 1 inch
+                          width="60%", # width = 30% of parent_bbox
+                          height="60%", # height : 1 inch
                           loc=3)
     
     inset_ax.imshow(datahr_1[a:c, b:d], cmap=cmap, 
@@ -520,7 +522,7 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
     ax3.imshow(datalr_2, cmap=cmap, vmax=vmaxlr_2, vmin=vminlr_2, 
               aspect='auto', extent=[0,1,0,1])
 #    plt.title('Dirty map \nzoom', color='C1', fontweight='bold', fontsize=15)
-    plt.title('Dirty image', color='C3', fontsize=30, pad=20)
+    plt.title('Dirty (input) image', color='C3', fontsize=30, pad=20)
 
     ax3.set_yticks([])
     ax3.set_xticks([])
@@ -531,8 +533,8 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
 
 
     inset_ax = inset_axes(ax3,
-                          width="45%", # width = 30% of parent_bbox
-                          height="45%", # height : 1 inch
+                          width="60%", # width = 30% of parent_bbox
+                          height="60%", # height : 1 inch
                           loc=3)
     
     inset_ax.imshow(datalr_2[a//4:c//4, b//4:d//4], cmap=cmap, 
@@ -555,9 +557,10 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
     ax4.set_xticks([])
     plt.xlim(xlim2,xlim2+dx2)
     plt.ylim(ylim2,ylim2+dy2)
+    ax4.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C2", fc="None"))
 
-    plt.title('POLISH\nreconstruction', color='C2', 
-              fontsize=22, pad=10)
+    plt.title('POLISH (ours)', color='C2', fontsize=30, pad=20)
+
     plt.text(0.5, 0.85, polish_box[0], color='white', fontsize=18,
                  fontweight='bold', bbox=props)
     if calcpsnr:
@@ -569,8 +572,8 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
 
 
     inset_ax = inset_axes(ax4,
-                          width="45%", # width = 30% of parent_bbox
-                          height="45%", # height : 1 inch
+                          width="60%", # width = 30% of parent_bbox
+                          height="60%", # height : 1 inch
                           loc=3)
     
     inset_ax.imshow(datasr_2[a:c, b:d], cmap=cmap, 
@@ -588,10 +591,11 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
     plt.title('True sky', color='k', fontsize=30, pad=20)
     plt.xlim(xlim2,xlim2+dx2)
     plt.ylim(ylim2,ylim2+dy2)
+    ax6.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="grey", fc="None"))
 
     inset_ax = inset_axes(ax6,
-                          width="45%", # width = 30% of parent_bbox
-                          height="45%", # height : 1 inch
+                          width="60%", # width = 30% of parent_bbox
+                          height="60%", # height : 1 inch
                           loc=3)
     
     inset_ax.imshow(datahr_2[a:c, b:d], cmap=cmap, 
@@ -614,12 +618,12 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
             props = dict(boxstyle='round', facecolor='white', alpha=0.7, edgecolor='white')
             plt.text(xlim2+0.01, ylim2+0.005, psnr_clean_2, color='C3', fontsize=9, fontweight='bold', bbox=props)
 
-        plt.title('CLEAN', color='C0', fontsize=30, pad=20)
+        plt.title('CLEAN (baseline)', color='C0', fontsize=30, pad=20)
         ax7.add_patch(plt.Rectangle((a1, b1), abs(b1-d1), abs(c1-a1), ls="--", lw=3, ec="C0", fc="None"))
 
         inset_ax = inset_axes(ax7,
-                              width="45%", # width = 30% of parent_bbox
-                              height="45%", # height : 1 inch
+                              width="60%", # width = 30% of parent_bbox
+                              height="60%", # height : 1 inch
                               loc=3)
         inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C0", fc="None"))
 
@@ -649,8 +653,8 @@ def plot_example_sr(datalr, datasr, datahr=None, dataother=None,
                  fontweight='bold', bbox=props)
 
         inset_ax = inset_axes(ax8,
-                              width="45%", # width = 30% of parent_bbox
-                              height="45%", # height : 1 inch
+                              width="60%", # width = 30% of parent_bbox
+                              height="60%", # height : 1 inch
                               loc=3)
         inset_ax.add_patch(plt.Rectangle((0, 0), 1, 1, ls="--", lw=7, ec="C0", fc="None"))
 
@@ -1534,10 +1538,28 @@ def match(fn1, fn2, pixel_scale_arcsec=0.5):
 
     return ra1, dec1, ra2, dec2, p1, p2, idx
 
+def run_plot_all_neurips():
+    lr1chan = np.load('plots/1chan-29mar21-0844-LR-neurips-1chan.npy')
+    lrfull = np.load('plots/1chan-29mar21-0844-LR-neurips-fullband.npy')
+    sr1chan = np.load('plots/1chan-29mar21-0844-SR-neurips-1chan.npy')
+    srfull = np.load('plots/1chan-29mar21-0844-SR-neurips-fullband.npy')
+    hr = np.load('plots/1chan-29mar21-0844-HR-neurips-fullband.npy')
+    dd = np.load('plots/1chan-29mar21-0844-CLEAN-neurips-1chan.npy')
+    D = np.load('plots/1chan-29mar21-0844-CLEAN-neurips-fullband.npy')
+    plot_example_sr((lr1chan, lrfull), (sr1chan, srfull), (hr,hr), 
+                dataother=(dd,D),
+                calcpsnr=False, cmap='afmhot_10us',
+                vml=(0, 2500, 0, 2500),
+                vms=(0, 2500, 0, 2500),
+                vmh=(0, 2500, 0, 2500), 
+                vmc=(0, 2500, 0, 2500), 
+                polish_box= ('PSNR = 59.2\nSSIM = 0.998', 'PSNR = 56.1\nSSIM = 0.999'), 
+                clean_box=('PSNR = 51.8\nSSIM = 0.994', 'PSNR = 50.1\nSSIM = 0.992'))
+
 def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5, 
              psf='AJ-15x60s-4000chan-0.5arcsec-3x/psf/psf.npy'):
     pixel_scale_arcsec=0.5
-    psf='AJ-15x60s-4000chan-0.5arcsec-3x/psf/psf.npy'
+#    psf='AJ-15x60s-4000chan-0.5arcsec-3x/psf/psf.npy'
     fn1 = 'plots/0808.cat'
     fn2 = 'plots/0808SR.cat'
     fn3 = 'plots/0808CLEAN-50k-maj.cat'
@@ -1570,16 +1592,15 @@ def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5,
     xlim(0.5, 7)
     xlabel(r"True  $\theta_A$  (arcseconds)", fontsize=18)
     ylabel(r"$\hat{\theta}_A$  (arcseconds)", fontsize=18)
-    ylim(0, 7.5)
+    ylim(0.5, 7.5)
+    text(1, 7, 'Semi-major axis', fontsize=18, c='red')
 
     subplot(122)
     scatter(B_image_1*pixel_scale_arcsec, B_image_2[idx]*pixel_scale_arcsec, np.log(snr_2[idx]), c = '#95D840FF', alpha=0.85)
     xlabel(r"True  $\theta_B$  (arcseconds) ",  fontsize=18)
     ylabel(r"$\hat{\theta}_B$  (arcseconds)",  fontsize=18)
     xlim(0.5, 7)
-    ylim(0, 7.5)
-
-    text(1, 6, 'Semi-major axis', fontsize=14)
+    ylim(0.5, 7.5)
 
 
     if fn3 is not None:
@@ -1587,7 +1608,7 @@ def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5,
         scatter(A_image_1*pixel_scale_arcsec, A_image_3[idx3]*pixel_scale_arcsec, np.log(snr_2[idx]), c = 'C0', alpha=0.5)
     #    scatter(A_image_1*pixel_scale_arcsec, A_image_2[idx]*pixel_scale_arcsec, np.log10(snr_2[idx]), color=c, alpha=0.75)
         xlim(0.5, 7)
-        ylim(0, 7.5)
+        ylim(0,5, 7.5)
 
         if psf is not None:
             xx = np.linspace(0, 8, 100)
@@ -1599,16 +1620,18 @@ def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5,
         if psf is not None:
             plot(xx, f(xx)*6.5, alpha=0.25, lw=2, c='C3')
 
-        xlim(0.5, 7)
-        ylim(0, 7.5)
-
-        legend(['PSF/kernel', 'POLISH', 'CLEAN'], loc=1)
+        legend(['POLISH', 'CLEAN'], loc=1)
 
     subplot(121)
     plot(x, x, '--', alpha=0.6)
+    xlim(0.5, 7)
+    ylim(0.5, 7.5)
+
     subplot(122)
     plot(x, x, '--', alpha=0.6)
-    text(1, 6, 'Semi-minor axis', fontsize=14)
+    text(1, 7, 'Semi-minor axis', fontsize=18, c='red')
+    xlim(0.5, 7)
+    ylim(0.5, 7.5)
 
     tight_layout()
 
