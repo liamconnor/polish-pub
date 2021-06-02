@@ -1620,18 +1620,19 @@ def plot_all(fn1, fn2, fn3=None, pixel_scale_arcsec=0.5,
         if psf is not None:
             plot(xx, f(xx)*6.5, alpha=0.25, lw=2, c='C3')
 
-        legend(['POLISH', 'CLEAN'], loc=1)
 
     subplot(121)
-    plot(x, x, '--', alpha=0.6)
+    plot(x, x, '--', alpha=0.6, color='k')
     xlim(0.5, 7)
     ylim(0.5, 7.5)
 
     subplot(122)
-    plot(x, x, '--', alpha=0.6)
+    plot(x, x, '--', alpha=0.6, color='k')
     text(1, 7, 'Semi-minor axis', fontsize=18, c='red')
     xlim(0.5, 7)
     ylim(0.5, 7.5)
+
+    legend([r'$\hat{\theta} = \theta$', 'POLISH', 'CLEAN', ], loc=1, markerscale=3)
 
     tight_layout()
 
