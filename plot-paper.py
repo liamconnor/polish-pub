@@ -4,12 +4,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
+import tensorflow as tf
 from skimage import draw
 from astropy.io import fits
 from typing import Tuple, List, Optional
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
 from data_augmentation import elastic_transform
+
+import hr2lr
+
+try:
+    import ehtplot.color
+except:
+    pass 
+
+cmaps = sorted(m for m in plt.cm.datad if not m.endswith("_r"))
+if 'afmhot_10us' in cmaps:
+    cmap_global = 'afmhot_10us'
+else:
+    print("Could not load afmhot_10us, using afmhot")
+    cmap_global = 'afmhot'
 
 plt.rcParams.update({
                     'font.size': 12,
@@ -878,7 +893,7 @@ def gaussian2D(coords,  # x and y coordinates for each image.
                                           mat_coords[..., np.newaxis])) + offset
     return G.squeeze()
 
-def lobe_gal_plot(model=None):
+def lobe_gal_plot(model=None, ):
     if model is None:
         lr = np.load('./plots/ska-fun-mid-dirty.npy')
         sr = np.load('./plots/ska-fun-mid-SR.npy')
@@ -915,19 +930,19 @@ def lobe_gal_plot(model=None):
 
     figure()
     subplot(131)
-    imshow(lr, cmap='afmhot_10us',extent=et, vmax=lr.max()*.15)
+    imshow(lr, cmap=cmap_global,extent=et, vmax=lr.max()*.15)
     xlim(0.48, 0.525)
     ylim(0.535, 0.50)
     axis('off')
 
     subplot(132)
-    imshow(sr, cmap='afmhot_10us', vmax=sr.max()*0.11, extent=et)
+    imshow(sr, cmap=cmap_global, vmax=sr.max()*0.11, extent=et)
     xlim(0.48, 0.525)
     ylim(0.535, 0.50)
     axis('off')
     
     subplot(133)
-    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap='afmhot_10us')
+    imshow(hr, vmax=hr.max()*0.05, extent=et, cmap=cmap_global)
     xlim(0.48, 0.525)
     ylim(0.535, 0.50)
     axis('off')
@@ -990,7 +1005,7 @@ def lobe_gal_clean():
     vmx = hr[910:1050, 810:974].max()
     vmn = hr[910:1050, 810:974].min()
 
-    ax1.imshow(lr**0.85, cmap='afmhot_10us', vmax=vmx, vmin=vmn, )
+    ax1.imshow(lr**0.85, cmap=cmap_global, vmax=vmx, vmin=vmn, )
     # Create a Rectangle patch
     rect1 = patches.Rectangle((810//3, 910//3), 164//3, 140//3, linewidth=3, edgecolor='C1', facecolor='none')
     rect2 = patches.Rectangle((a//3, b//3), 100//3, 100//3, linewidth=3, edgecolor='C1', facecolor='none')
@@ -1001,7 +1016,7 @@ def lobe_gal_clean():
 
 
     ax2 = plt.subplot(gs[0, 4:6])
-    ax2.imshow(sr**0.85, cmap='afmhot_10us', vmax=vmx, vmin=vmn,  )
+    ax2.imshow(sr**0.85, cmap=cmap_global, vmax=vmx, vmin=vmn,  )
     # Create a Rectangle patch
     rect1 = patches.Rectangle((810, 910), 164, 140, linewidth=3, edgecolor='C2', facecolor='none')
     rect2 = patches.Rectangle((a, b), 100, 100, linewidth=3, edgecolor='C2', facecolor='none')
@@ -1014,7 +1029,7 @@ def lobe_gal_clean():
 #          fontweight='bold', bbox=props)
 
     ax3 = plt.subplot(gs[0, 6:8])
-    immy = ax3.imshow(hr**0.85, vmax=vmx, vmin=vmn, cmap='afmhot_10us')
+    immy = ax3.imshow(hr**0.85, vmax=vmx, vmin=vmn, cmap=cmap_global)
     rect1 = patches.Rectangle((810, 910), 164, 140, linewidth=3, edgecolor='grey', facecolor='none')
     rect2 = patches.Rectangle((a, b), 100, 100, linewidth=3, edgecolor='grey', facecolor='none')
     ax3.add_patch(rect1)
@@ -1026,7 +1041,7 @@ def lobe_gal_clean():
     plt.colorbar(immy,cax=cax)
 
     ax4 = plt.subplot(gs[0, 2:4])
-    ax4.imshow(D**0.85, vmax=vmx, vmin=0.05, cmap='afmhot_10us')
+    ax4.imshow(D**0.85, vmax=vmx, vmin=0.05, cmap=cmap_global)
     # Create a Rectangle patch
     rect1 = patches.Rectangle((810, 910), 164, 140, linewidth=3, edgecolor='C0', facecolor='none')
     rect2 = patches.Rectangle((a, b), 100, 100, linewidth=3, edgecolor='C0', facecolor='none')
@@ -1059,22 +1074,22 @@ def lobe_gal_clean():
     D_ = D_ / D_.max()
 
     ax5 = plt.subplot(gs[1, 0])
-    imshow(lr_**0.85, cmap='afmhot_10us',extent=et, vmax=0.5, vmin=0, )
+    ax5.imshow(lr_**0.85, cmap=cmap_global,extent=et, vmax=0.5, vmin=0, )
     plt.xticks([])
     plt.yticks([])
 
     ax6 = plt.subplot(gs[1, 4])
-    imshow(sr_**0.85, cmap='afmhot_10us', vmax=0.5, vmin=0,  extent=et)
+    ax6.imshow(sr_**0.85, cmap=cmap_global, vmax=0.5, vmin=0,  extent=et)
     plt.xticks([])
     plt.yticks([])
     
     ax7 = plt.subplot(gs[1, 6])
-    imshow(hr_**0.85, vmax=0.5, vmin=0,  extent=et, cmap='afmhot_10us')
+    ax7.imshow(hr_**0.85, vmax=0.5, vmin=0,  extent=et, cmap=cmap_global)
     plt.xticks([])
     plt.yticks([])
     
     ax8 = plt.subplot(gs[1, 2])
-    imshow(D_**0.85, vmax=0.5, vmin=0, extent=et, cmap='afmhot_10us')
+    ax8.imshow(D_**0.85, vmax=0.5, vmin=0, extent=et, cmap=cmap_global)
     plt.xticks([])
     plt.yticks([])
 
@@ -1096,22 +1111,22 @@ def lobe_gal_clean():
     D_ = D_ / D_.max()
 
     ax9 = plt.subplot(gs[1, 1])
-    imshow(lr_**0.85, cmap='afmhot_10us',extent=et, vmax=0.5, vmin=0, )
+    ax9.imshow(lr_**0.85, cmap=cmap_global,extent=et, vmax=0.5, vmin=0, )
     plt.xticks([])
     plt.yticks([])
 
     ax10 = plt.subplot(gs[1, 5])
-    imshow(sr_**0.85, cmap='afmhot_10us', vmax=0.5, vmin=0,  extent=et)
+    ax10.imshow(sr_**0.85, cmap=cmap_global, vmax=0.5, vmin=0,  extent=et)
     plt.xticks([])
     plt.yticks([])
 
     ax11 = plt.subplot(gs[1, 7])
-    imshow(hr_**0.85, vmax=0.5, vmin=0,  extent=et, cmap='afmhot_10us')
+    ax11.imshow(hr_**0.85, vmax=0.5, vmin=0,  extent=et, cmap=cmap_global)
     plt.xticks([])
     plt.yticks([])
     
     ax12 = plt.subplot(gs[1, 3])
-    imshow(D_**0.85, vmax=0.5, vmin=0, extent=et, cmap='afmhot_10us')
+    ax12.imshow(D_**0.85, vmax=0.5, vmin=0, extent=et, cmap=cmap_global)
     plt.xticks([])
     plt.yticks([])
 
@@ -1133,7 +1148,7 @@ def vla_mosaic():
             dsr = resolve_single(model, d[1024*ii:1024*(ii+1), 1024*jj:1024*(jj+1)]).numpy()
             arr[2*1024*ii:2*1024*(ii+1), 2*1024*jj:2*1024*(jj+1)] = dsr
 
-def plot_vla_polish_2():
+def plot_vla_polish_highres():
     import matplotlib.patches as patches
     lr = np.load('./plots/vla-dirty-plotregion.npy')
     cr = np.load('./plots/vla-CLEAN10k-plotregion.npy')
@@ -1144,6 +1159,72 @@ def plot_vla_polish_2():
 
     et = [0,1,1,0]
 
+    lr = hr2lr.normalize_data(lr)
+    sr = hr2lr.normalize_data(sr)
+    D = hr2lr.normalize_data(D)
+
+    lr = lr - np.median(lr)
+    lr = lr / lr.max()
+
+    sr = sr - sr.min()
+    sr = sr / sr.max()
+
+    D = D - np.median(D)
+    D = D / D.max()
+
+    a2,b2,c2,d2 = 472, 719, 472+150, 719+150
+    a,b,c,d = 290, 125, 290+150, 125+150
+
+    fig = plt.figure(figsize=(12,12))
+    ax1 = plt.subplot(111)
+
+    vmx = 0.025
+    vmn = -0.003
+
+    ax1.imshow(lr, cmap=cmap_global, vmax=vmx, vmin=vmn, )
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((a, b), c-a, d-b, linestyle='--',linewidth=3, edgecolor='C1', facecolor='none')
+    rect2 = patches.Rectangle((a2, b2), c2-a2, d2-b2, linewidth=3, edgecolor='C1', facecolor='none')
+    ax1.add_patch(rect1)
+    ax1.add_patch(rect2)
+    axis('off')
+    title('Dirty image', c='C1', fontsize=31)
+    plt.savefig('dirty_vla_hires.pdf')
+
+    fig = plt.figure(figsize=(12,12))
+    ax2 = plt.subplot(111)    
+    ax2.imshow(sr, cmap=cmap_global, vmax=vmx, vmin=vmn,  )
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((a*2., b*2.), (c-a)*2., (d-b)*2., linestyle='--', linewidth=3, edgecolor='C2', facecolor='none')
+    rect2 = patches.Rectangle((a2*2., b2*2.), (c2-a2)*2., (d2-b2)*2., linewidth=3, edgecolor='C2', facecolor='none')
+    ax2.add_patch(rect1)
+    ax2.add_patch(rect2)
+    axis('off') 
+    title('POLISH reconstruction', c='C2', fontsize=31)
+    plt.savefig('POLISH_vla_hires.pdf')
+
+    fig = plt.figure(figsize=(12,12))
+    ax4 = plt.subplot(111)
+    ax4.imshow(D, vmax=vmx, vmin=vmn, cmap=cmap_global)
+    # Create a Rectangle patch
+    rect1 = patches.Rectangle((a, b), c-a, d-b, linestyle='--', linewidth=3, edgecolor='C0', facecolor='none')
+    rect2 = patches.Rectangle((a2, b2), c2-a2, d2-b2, linewidth=3, edgecolor='C0', facecolor='none')
+    ax4.add_patch(rect1)
+    ax4.add_patch(rect2)
+    axis('off')
+    title('CLEAN reconstruction', c='C0', fontsize=31)
+    plt.savefig('CLEAN_vla_hires.pdf')
+
+def plot_vla_polish():
+    import matplotlib.patches as patches
+    lr = np.load('./plots/vla-dirty-plotregion.npy')
+    cr = np.load('./plots/vla-CLEAN10k-plotregion.npy')
+    sr2 = np.load('./plots/vla-polish-plotregion.npy')
+    sr = np.load('./plots/vla-polish-plotregion-new.npy')
+
+    D = cr
+
+    et = [0,1,1,0]
 
     lr = hr2lr.normalize_data(lr)
     sr = hr2lr.normalize_data(sr)
@@ -1168,7 +1249,7 @@ def plot_vla_polish_2():
     vmx = 0.035
     vmn = -0.0035
 
-    ax1.imshow(lr, cmap='afmhot_10us', vmax=vmx, vmin=vmn, )
+    ax1.imshow(lr, cmap=cmap_global, vmax=vmx, vmin=vmn, )
     # Create a Rectangle patch
     rect1 = patches.Rectangle((a, b), c-a, d-b, linestyle='--',linewidth=3, edgecolor='C1', facecolor='none')
     rect2 = patches.Rectangle((a2, b2), c2-a2, d2-b2, linewidth=3, edgecolor='C1', facecolor='none')
@@ -1179,7 +1260,7 @@ def plot_vla_polish_2():
 
 
     ax2 = plt.subplot(gs[0, 4:6])
-    ax2.imshow(sr.reshape(-1, 4, len(sr)//4, 4).mean(1).mean(-1), cmap='afmhot_10us', vmax=vmx, vmin=vmn,  )
+    ax2.imshow(sr.reshape(-1, 4, len(sr)//4, 4).mean(1).mean(-1), cmap=cmap_global, vmax=vmx, vmin=vmn,  )
     # Create a Rectangle patch
     rect1 = patches.Rectangle((a/2., b/2.), (c-a)/2., (d-b)/2., linestyle='--', linewidth=3, edgecolor='C2', facecolor='none')
     rect2 = patches.Rectangle((a2/2., b2/2.), (c2-a2)/2., (d2-b2)/2., linewidth=3, edgecolor='C2', facecolor='none')
@@ -1189,7 +1270,7 @@ def plot_vla_polish_2():
     title('POLISH reconstruction', c='C2', fontsize=31)
 
     ax4 = plt.subplot(gs[0, 2:4])
-    ax4.imshow(D, vmax=vmx, vmin=vmn, cmap='afmhot_10us')
+    ax4.imshow(D, vmax=vmx, vmin=vmn, cmap=cmap_global)
     # Create a Rectangle patch
     rect1 = patches.Rectangle((a, b), c-a, d-b, linestyle='--', linewidth=3, edgecolor='C0', facecolor='none')
     rect2 = patches.Rectangle((a2, b2), c2-a2, d2-b2, linewidth=3, edgecolor='C0', facecolor='none')
@@ -1212,17 +1293,17 @@ def plot_vla_polish_2():
     # D_ = D_ / D_.max()
 
     ax5 = plt.subplot(gs[1, 0])
-    imshow(lr_, cmap='afmhot_10us',extent=et, vmax=1.5*vmx, vmin=vmn, )
+    imshow(lr_, cmap=cmap_global,extent=et, vmax=1.5*vmx, vmin=vmn, )
     plt.xticks([])
     plt.yticks([])
 
     ax6 = plt.subplot(gs[1, 4])
-    imshow(sr_, cmap='afmhot_10us', vmax=1.5*vmx, vmin=vmn,  extent=et)
+    imshow(sr_, cmap=cmap_global, vmax=1.5*vmx, vmin=vmn,  extent=et)
     plt.xticks([])
     plt.yticks([])
     
     ax8 = plt.subplot(gs[1, 2])
-    imshow(D_, vmax=1.5*vmx, vmin=vmn, extent=et, cmap='afmhot_10us')
+    imshow(D_, vmax=1.5*vmx, vmin=vmn, extent=et, cmap=cmap_global)
     plt.xticks([])
     plt.yticks([])
 
@@ -1231,17 +1312,17 @@ def plot_vla_polish_2():
     D_ = D[b2:d2, a2:c2]
 
     ax9 = plt.subplot(gs[1, 1])
-    imshow(lr_, cmap='afmhot_10us',extent=et, vmax=1.5*vmx, vmin=vmn, )
+    imshow(lr_, cmap=cmap_global,extent=et, vmax=1.5*vmx, vmin=vmn, )
     plt.xticks([])
     plt.yticks([])
 
     ax10 = plt.subplot(gs[1, 5])
-    imshow(sr_, cmap='afmhot_10us', vmax=1.5*vmx, vmin=vmn,  extent=et)
+    imshow(sr_, cmap=cmap_global, vmax=1.5*vmx, vmin=vmn,  extent=et)
     plt.xticks([])
     plt.yticks([])
     
     ax12 = plt.subplot(gs[1, 3])
-    imshow(D_, vmax=2.5*vmx, vmin=vmn, extent=et, cmap='afmhot_10us')
+    imshow(D_, vmax=2.5*vmx, vmin=vmn, extent=et, cmap=cmap_global)
     plt.xticks([])
     plt.yticks([])
 
@@ -1251,65 +1332,6 @@ def plot_vla_polish_2():
     plt.setp(ax10.spines.values(), color='C2', lw=5, )
     plt.setp(ax8.spines.values(), color='C0', lw=5, linestyle='--')
     plt.setp(ax12.spines.values(), color='C0', lw=5)
-
-
-def plot_vla_polish(cleanmin=200, polishmin=-800):
-    lr = np.load('./plots/vla-dirty-plotregion.npy')
-    cr = np.load('./plots/vla-CLEAN10k-plotregion.npy')
-    sr = np.load('./plots/vla-polish-plotregion.npy')
-
-    cr = hr2lr.normalize_data(cr)
-    lr = hr2lr.normalize_data(lr)
-
-    et = [0,1,1,0]
-
-    #figure()
-    fig, ax = plt.subplots()
-    plt.subplot(131)
-    plt.imshow(lr, cmap='afmhot_10us',extent=et, vmax=lr.max()*.075)
-#    rect = patches.Rectangle((0.28, 0.09), .15, 0.2,  linewidth=3, edgecolor='C3', facecolor='none')
-#    ax.add_patch(rect)
-    axis('off')
-    title('Dirty image', c='C3', fontsize=28)
-    xlim(0.13, .77)
-    ylim(0.85, 0.1)
-
-    subplot(132)
-    imshow(sr, cmap='afmhot_10us', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
-    title('POLISH reconstruction', c='C2', fontsize=28)
-    axis('off')
-    xlim(0.13, .77)
-    ylim(0.85, 0.1)
-    
-    subplot(133)
-    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot_10us', vmin=cleanmin)
-    xlim(0.13, .77)
-    ylim(0.85, 0.1)
-    axis('off')
-    title('CLEAN', c='C0', fontsize=28)
-    tight_layout()
-
-    figure()
-    subplot(131)
-    imshow(lr, cmap='afmhot_10us',extent=et, vmax=lr.max()*.08)
-    xlim(0.28, 0.28+.15)
-    ylim(0.09+0.2, 0.09)
-    axis('off')
-
-    subplot(132)
-    imshow(sr, cmap='afmhot_10us', vmax=sr.max()*0.025, extent=et, vmin=polishmin)
-    xlim(0.28, 0.28+.15)
-    ylim(0.09+0.2, 0.09)
-    axis('off')
-    
-    subplot(133)
-    imshow(cr, vmax=cr.max()*0.08, extent=et, cmap='afmhot_10us',vmin=cleanmin)
-    xlim(0.28, 0.28+.15)
-    ylim(0.09+0.2, 0.09)
-    axis('off')
-    tight_layout()
-
-
 
 
 def create_fits_header():
@@ -1349,9 +1371,6 @@ def write_data_fits(data, header, fnout):
     hdu = fits.PrimaryHDU(data, header=header)
     hdul = fits.HDUList([hdu])
     hdul.writeto(fnout)
-
-
-
 
 import sys 
 
@@ -1672,6 +1691,27 @@ def make_fig3():
     plot_example_sr((lrf,lr), (srf*4.8/6,sr), (hf,hf),
                     calcpsnr=False, cmap='afmhot_10us', vml=(-3000, 4000, 1500, 4000), 
                     vms=(-300, 2500, -300, 2500), vmh=(-300, 2500, -300, 2500),)
+
+
+if __name__=='__main__':
+    if int(sys.argv[1])==1:
+        lobe_gal_clean() 
+    elif int(sys.argv[1])==3:
+        run_plot_all_neurips()
+    elif int(sys.argv[1])==4:
+        plot_all('','') 
+    elif int(sys.argv[1])==5:
+        perturbation_figure()
+    elif int(sys.argv[1])==6:
+        plot_vla_polish()
+    elif sys.argv[1] in ('all', 'All', 'ALL'):
+        lobe_gal_clean() 
+        run_plot_all_neurips()
+        plot_all('','') 
+        perturbation_figure()
+        plot_vla_polish()
+    else:
+        print("Wrong figure number")
 
 
 
