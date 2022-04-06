@@ -91,7 +91,8 @@ def normalize_data(data, nbit=16):
     return data
 
 def convolvehr(data, kernel, plotit=False, 
-               rebin=4, norm=True, nbit=16, noise=True):
+               rebin=4, norm=True, nbit=16, 
+               noise=True, cmap='afmhot'):
     if len(data.shape)==3:
         kernel = kernel[..., None]
         ncolor = 1
@@ -131,16 +132,16 @@ def convolvehr(data, kernel, plotit=False,
             data = data.reshape(data.shape[0]//4,4,
                                 data.shape[-2]//4, 4, 
                                 ncolor).mean(1).mean(-2)
-            plt.imshow(dataLR[..., 0], cmap='Greys', 
+            plt.imshow(dataLR[..., 0], cmap=cmap, 
                         vmax=dataLR[..., 0].max()*0.025)
         else:
-            plt.imshow(dataLR, vmax=dataLR[..., 0].max())
+            plt.imshow(dataLR, vmax=dataLR[..., 0].max(), cmap=cmap)
         plt.title('Convolved', fontsize=15)
         plt.figure()
         if norm is False:
-            plt.imshow(data[..., 0], cmap='Greys', vmax=data.max()*0.1)
+            plt.imshow(data[..., 0], cmap=cmap, vmax=data.max()*0.1)
         else:
-            plt.imshow(data, vmax=data.max()*0.1)
+            plt.imshow(data, cmap=cmap,vmax=data.max()*0.1)
         plt.title('True', fontsize=15)
         plt.figure()
         plt.imshow(kernel[...,0])
@@ -154,6 +155,44 @@ def create_LR_image(fl, kernel, fdirout=None,
                     norm=True, sky=False, rebin=4, nbit=16, 
                     distort_psf=False,
                     nimages=800, nchan=1, save_img=True):
+    """ Create a set of image pairs (true sky, dirty image) 
+    and save to output directory 
+
+    Parameters:
+    ----------
+    fl : str / list 
+        Input file list 
+    kernel : ndarray 
+        PSF array 
+    fdirout : str 
+        Path to save output data to 
+    galaxies : bool 
+        Simulate galaxies 
+    plotit : bool 
+        Display plots for each image pair
+    norm : bool 
+        Normalize data 
+    sky : bool 
+        Use SKA sky data as input 
+    rebin : int 
+        1D resolution factor between true sky and convolved image 
+    nbit : int 
+        Number of bits for image data 
+    distort_psr : bool 
+        Distort each image pair's PSF with a difference perturbation 
+    nimages : int 
+        Number of image pairs 
+    nchan : int 
+        Number of radio frequency channels 
+    save_img : bool 
+        Save down images 
+
+    Returns: 
+    --------
+    dataLR: ndarray 
+        Convolved image arrays
+    data, data_noise : ndarray 
+    """
     if type(fl) is str:
         fl = glob.glob(fl+'/*.png')
         if len(fl)==0:
@@ -290,7 +329,7 @@ if __name__=='__main__':
     parser.add_option('-k', '--kernel', dest='kernel', type='str',
                       help="", default='Gaussian')
     parser.add_option("-s", "--ksize", dest='ksize', type=int,
-                      help="size of kernel", default=64)
+                      help="size of kernel", default=256)
     parser.add_option('-o', '--fdout', dest='fdout', type='str',
                       help="output directory", default='./')
     parser.add_option('-p', '--plotit', dest='plotit', action="store_true",
@@ -309,6 +348,8 @@ if __name__=='__main__':
                       help="perturb PSF for each image generated")
 
     options, args = parser.parse_args()
+
+    # Read in kernel. If -k is not given, assume Gaussian kernel 
     if options.kernel.endswith('npy'):
         kernel = np.load(options.kernel)
         nkern = len(kernel)
@@ -328,13 +369,16 @@ if __name__=='__main__':
             print("Stretching PSF by %0.3f to match map" % (pixel_scale_psf/PIXEL_SIZE))
             kernel = transform.rescale(kernel, pixel_scale_psf/PIXEL_SIZE)
 
+    # Input directory
     if options.fdirin is None:
         fdirinTRAIN = None
         fdirinVALID = None 
     else:
         fdirinTRAIN = options.fdirin+'/DIV2K_train_HR/'
         fdirinVALID = options.fdirin+'/DIV2K_valid_HR/'
-    
+
+    # Output directories for training and validation. 
+    # If they don't exist, create them
     fdiroutTRAIN = options.fdout+'/train/'
     fdiroutVALID = options.fdout+'/valid/'
     
@@ -355,10 +399,12 @@ if __name__=='__main__':
     print("saving idealized PSF")
     np.save('%s/psf_ideal.npy' % fdiroutPSF, kernel)
 
+    # Create image pairs for training
     create_LR_image(fdirinTRAIN, kernel, fdirout=fdiroutTRAIN, 
             plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit, 
             distort_psf=options.distort_psf, nchan=options.nchan)   
+    # Create image pairs for validation set
     create_LR_image(fdirinVALID, kernel, fdirout=fdiroutVALID, 
             plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit,
