@@ -7,7 +7,6 @@ import cv2
 from scipy import signal, interpolate
 import optparse
 
-from astropy.modeling.models import Sersic2D
 import simulation
 
 try:
@@ -21,7 +20,6 @@ except:
     print("Could not load astropy.io.fits")
 
 PIXEL_SIZE = 0.25 # resolution of HR map in arcseconds
-fn_background = './data/haslam-cdelt0.031074-allsky.npy'
 src_density = 5 # per sq arcminute 
 NSIDE = 2304 # number of pixels per side for high res image
 FREQMIN, FREQMAX = 0.7, 2.0
@@ -41,15 +39,18 @@ def readfits(fnfits):
     return data, header, pixel_scale, num_pix
 
 
-def gaussian2D(coords,  # x and y coordinates for each image.
-                  amplitude=1,  # Highest intensity in image.
-                  xo=0,  # x-coordinate of peak centre.
-                  yo=0,  # y-coordinate of peak centre.
-                  sigma_x=1,  # Standard deviation in x.
-                  sigma_y=1,  # Standard deviation in y.
-                  rho=0,  # Correlation coefficient.
-                  offset=0,
-                  rot=0):  # rotation in degrees.
+def gaussian2D( coords,  # x and y coordinates for each image.
+                amplitude=1,  # Highest intensity in image.
+                xo=0,  # x-coordinate of peak centre.
+                yo=0,  # y-coordinate of peak centre.
+                sigma_x=1,  # Standard deviation in x.
+                sigma_y=1,  # Standard deviation in y.
+                rho=0,  # Correlation coefficient.
+                offset=0,
+                rot=0):  # rotation in degrees.
+    """ 2D ellipsoidal Gaussian function, including 
+    rotation
+    """
     x, y = coords
 
     rot = np.deg2rad(rot)
@@ -81,6 +82,9 @@ def gaussian2D(coords,  # x and y coordinates for each image.
     return G.squeeze()
 
 def normalize_data(data, nbit=16):
+    """ Normalize data to fit in bit range, 
+    convert to specified dtype
+    """
     data = data - data.min()
     data = data/data.max()
     data *= (2**nbit-1)
@@ -93,6 +97,15 @@ def normalize_data(data, nbit=16):
 def convolvehr(data, kernel, plotit=False, 
                rebin=4, norm=True, nbit=16, 
                noise=True, cmap='afmhot'):
+    """ Take input data and 2D convolve with kernel 
+    
+    Parameters:
+    ----------
+    data : ndarray 
+        data to be convolved 
+    kernel : ndarray 
+        convolutional kernel / PSF 
+    """ 
     if len(data.shape)==3:
         kernel = kernel[..., None]
         ncolor = 1
@@ -100,7 +113,6 @@ def convolvehr(data, kernel, plotit=False,
         ncolor = 3
     
     if noise:
-#        dataLR += 10*np.random.chisquare(5,dataLR.shape)
         data_noise = data + np.random.normal(0,5,data.shape)
     else:
         data_noise = data
