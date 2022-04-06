@@ -28,7 +28,13 @@ FREQMIN, FREQMAX = 0.7, 2.0
 
 def readfits(fnfits):
     hdulist = fits.open(fnfits)
-    data = hdulist[0].data[0, 0]
+    dshape = hdulist[0].shape 
+    if len(dshape)==2:
+        data = hdulist[0].data
+    elif len(dshape)==3:
+        data = hdulist[0].data[0]
+    elif len(dshape)==4:
+        data = hdulist[0].data[0,0]
     header = hdulist[0].header
     pixel_scale = abs(header['CDELT1'])
     num_pix = abs(header['NAXIS1'])
@@ -299,8 +305,6 @@ if __name__=='__main__':
                       help="number of bits for image", default=16)
     parser.add_option('-n', '--nchan', dest='nchan', type=int,
                       help="number of frequency channels for image", default=1)
-    parser.add_option('--scp', dest='scp', action="store_true",
-                      help="scp data to cms-imaging")
     parser.add_option('--distort_psf', dest='distort_psf', action="store_true",
                       help="perturb PSF for each image generated")
 
@@ -359,13 +363,6 @@ if __name__=='__main__':
             plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit,
             distort_psf=options.distort_psf, nchan=options.nchan)
-
-    if options.scp:
-        fdirTRAINCMS = '/scratch/imaging/projects/dsa2000-sr/super-resolution/images-temp/train/'
-        fdirVALIDCMS = '/scratch/imaging/projects/dsa2000-sr/super-resolution/images-temp/valid/'
-        os.system('scp %s cms-imaging:%s' % (fdiroutTRAIN+'/*.png', fdirTRAINCMS))
-        os.system('scp %s cms-imaging:%s' % (fdiroutVALID+'/*.png', fdirVALIDCMS))
-
 
 
 
