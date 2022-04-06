@@ -144,46 +144,46 @@ def convolvehr(data, kernel, plotit=False,
     return dataLR, data_noise
 
 def create_LR_image(fl, kernel, fdirout=None, 
-                    pointsrcs=False, plotit=False, 
-                    norm=True, sky=False, rebin=4, nbit=8, 
+                    galaxies=False, plotit=False, 
+                    norm=True, sky=False, rebin=4, nbit=16, 
                     distort_psf=False,
                     nimages=800, nchan=1, save_img=True):
     if type(fl) is str:
         fl = glob.glob(fl+'/*.png')
+        if len(fl)==0:
+            print("Input file list is empty")
+            exit()
     elif type(fl) is list:
+        fl.sort()
+    elif fl==None:
         pass
     else:
         print("Expected a list or a str as fl input")
         return
 
-    if len(fl)==0:
-        print("Input file list is empty")
-        exit()
-
-    fl.sort()
-
-    # if pointsrcs:
-    #     fl = range(nimages)
-
-    for ii, fn in enumerate(fl[:]):
-
-        if fdirout is None:
-            fnout = fn.strip('.png')+'-conv.npy'
+    for ii in range(nimages):
+        if fl is not None:
+            fn = fl[ii]
+            if fdirout is None:
+                fnout = fn.strip('.png')+'-conv.npy'
+            else:
+                fnout = fdirout + fn.split('/')[-1][:-4] + 'x%d.png' % rebin
         else:
-            fnout = fdirout + fn.split('/')[-1][:-4] + 'x%d.png' % rebin
+            fn = 'image%03d.png'%ii
+            fnout = fdirout + fn[:-4] + 'x%d.png' % rebin
 
         if os.path.isfile(fnout):
-            print(fnout)
-            print("File exists, skipping.")
+            print("File exists, skipping %s"%fnout)
             continue
 
         if ii%10==0:
-            print("Finished %d/%d" % (ii, len(fl)))
+            print("Finished %d/%d" % (ii, nimages))
 
-        if pointsrcs:
-            print(fn)
+        if galaxies:
             Nx, Ny = NSIDE, NSIDE
             data = np.zeros([Nx,Ny])
+
+            # Get number of sources in this simulated image 
             nsrc = np.random.poisson(int(src_density*(Nx*Ny*PIXEL_SIZE**2/60.**2)))
             fdirgalparams = fdirout[:-6]+'/galparams/'
             if not os.path.isdir(fdirgalparams):
@@ -254,7 +254,7 @@ def create_LR_image(fl, kernel, fdirout=None,
             else:
                 np.save(fnout[:-4], dataLR)
 
-        if pointsrcs or sky:
+        if galaxies or sky:
             fnoutHR = fdirout + fn.split('/')[-1][:-4] + '.png'
             fnoutHRnoise = fdirout + fn.split('/')[-1][:-4] + 'noise.png'
 
@@ -273,29 +273,24 @@ def create_LR_image(fl, kernel, fdirout=None,
         del dataLR, data, data_noise
  
 if __name__=='__main__':
-    # Example usage:
-    # DIV2K: python hr2lr.py -d images/DIV2K_train_HR/ -k psf-briggs-2.npy -s 32 -o ./images/PSF-pointsrc-4x/test/ -p -r 4
-    # Point sources: python hr2lr.py -d images/DIV2K_train_HR/ -k psf-briggs-2.npy -s 32 -o ./images/PSF-pointsrc-4x/test/ -p -r 4 -x
-    # SKA sky image: python hr2lr.py -d images/DIV2K_train_HR/ -k psf-briggs-2.npy -s 64 -o ./images/PSF-pointsrc-4x/test/ -p --sky -r 2
-
     parser = optparse.OptionParser(prog="hr2lr.py",
                    version="",
-                   usage="%prog input_dir kernel  [OPTIONS]",
+                   usage="%prog [OPTIONS]",
                    description="Take high resolution images, convolve them, \
                    and save output.")
 
-    parser.add_option('-d', dest='fdirin', type='str',
-                      help="input directory")
+    parser.add_option('-d', dest='fdirin', default=None,
+                      help="input directory if high-res images already exist")
     parser.add_option('-k', '--kernel', dest='kernel', type='str',
                       help="", default='Gaussian')
     parser.add_option("-s", "--ksize", dest='ksize', type=int,
                       help="size of kernel", default=64)
     parser.add_option('-o', '--fdout', dest='fdout', type='str',
-                      help="output directory", default=None)
+                      help="output directory", default='./')
     parser.add_option('-p', '--plotit', dest='plotit', action="store_true",
                       help="plot")
-    parser.add_option('-x', '--pointsrcs', dest='pointsrcs', action="store_true",
-                      help="only do point sources")
+    parser.add_option('-x', '--galaxies', dest='galaxies', action="store_true",
+                      help="only do point sources", default=True)
     parser.add_option('--sky', dest='sky', action="store_true",
                       help="use SKA mid image as input")
     parser.add_option('-r', '--rebin', dest='rebin', type=int,
@@ -329,10 +324,16 @@ if __name__=='__main__':
             print("Stretching PSF by %0.3f to match map" % (pixel_scale_psf/PIXEL_SIZE))
             kernel = transform.rescale(kernel, pixel_scale_psf/PIXEL_SIZE)
 
-    fdirinTRAIN = options.fdirin+'/DIV2K_train_HR/'
-    fdirinVALID = options.fdirin+'/DIV2K_valid_HR/'
+    if options.fdirin is None:
+        fdirinTRAIN = None
+        fdirinVALID = None 
+    else:
+        fdirinTRAIN = options.fdirin+'/DIV2K_train_HR/'
+        fdirinVALID = options.fdirin+'/DIV2K_valid_HR/'
+    
     fdiroutTRAIN = options.fdout+'/train/'
     fdiroutVALID = options.fdout+'/valid/'
+    
     fdiroutPSF = options.fdout+'/psf/'
 
     if not os.path.isdir(fdiroutTRAIN):
@@ -347,17 +348,17 @@ if __name__=='__main__':
         print("Making output PSF directory")
         os.system('mkdir -p %s' % fdiroutPSF)
 
+    print("saving idealized PSF")
+    np.save('%s/psf_ideal.npy' % fdiroutPSF, kernel)
+
     create_LR_image(fdirinTRAIN, kernel, fdirout=fdiroutTRAIN, 
-            plotit=options.plotit, pointsrcs=options.pointsrcs, 
+            plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit, 
             distort_psf=options.distort_psf, nchan=options.nchan)   
     create_LR_image(fdirinVALID, kernel, fdirout=fdiroutVALID, 
-            plotit=options.plotit, pointsrcs=options.pointsrcs, 
+            plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit,
             distort_psf=options.distort_psf, nchan=options.nchan)
-
-    if not options.distort_psf:
-        np.save('%s/psf.npy' % fdiroutPSF, kernel)
 
     if options.scp:
         fdirTRAINCMS = '/scratch/imaging/projects/dsa2000-sr/super-resolution/images-temp/train/'
