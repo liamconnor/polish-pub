@@ -8,22 +8,6 @@ from data import RadioSky
 from model.wdsr import wdsr_b
 from train import WdsrTrainer
 
-# nchan = 1
-# nbit = 16
-# scale = 3
-# batchsize = 4
-# num_res_blocks = 32
-# train_steps = 1000000
-# ntrain = 800
-# fnoutweights = 'vla-nodistort-1e6steps-1arcmin-deeper2.h5'
-# #fnoutweights = 'vla-newnoise-2x-1M-headtail.h5'
-# #fnoutweights = 'AJ-15x60s-4000chan-0.5arcsec-3x-1M.h5'
-# #images_dir = sys.argv[1]
-# #caches_dir='./caches-%s' % images_dir
-# images_dir = './fullband-5may-3x/'
-# images_dir = 'vla-data-gregg-3x/'
-# caches_dir='caches-vla-data-gregg-3x/'
-
 def main(images_dir, caches_dir, fnoutweights, ntrain=800,
          scale=4, nchan=1, nbit=16, num_res_blocks=32, batchsize=4,
          train_steps=10000):
@@ -81,7 +65,7 @@ if __name__=='__main__':
                            version="",
                            usage="%prog fname datestr specnum [OPTIONS]",
                            description="Visualize and classify filterbank data")
-    parser.add_option("-c", "--cachdir", dest="caches_dir", type=str, default='',
+    parser.add_option("-c", "--cachdir", dest="caches_dir", type=str, default=None,
                       help="directory with training/validation image data")
     parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default='model.h5',
                       help="directory with training/validation image data")
@@ -101,7 +85,15 @@ if __name__=='__main__':
     options, args = parser.parse_args()
     images_dir = args[0]
 
-    main(images_dir, options.caches_dir, options.fnout_model, 
+    if options.caches_dir is None:
+        if images_dir[-1]=='/':
+            caches_dir = images_dir[:1] + '-cache'
+        else:
+            caches_dir = images_dir + '-cache'
+    else:
+        caches_dir = options.caches_dir
+
+    main(images_dir, caches_dir, options.fnout_model, 
          ntrain=options.ntrain,
          scale=options.scale, 
          nchan=options.nchan, 
