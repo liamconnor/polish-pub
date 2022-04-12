@@ -17,7 +17,7 @@ def main(images_dir, caches_dir, fnoutweights, ntrain=800,
                      subset='train',
                      images_dir=images_dir,
                      caches_dir=caches_dir,
-#                     nchan=nchan,
+                     nchan=nchan,
                      ntrain=ntrain)       # Training dataset are images 001 - 800
 
     # Create a tf.data.Dataset         
@@ -41,7 +41,7 @@ def main(images_dir, caches_dir, fnoutweights, ntrain=800,
     trainer = WdsrTrainer(model=wdsr_b(scale=scale, num_res_blocks=num_res_blocks, nchan=nchan), 
                       checkpoint_dir=f'.ckpt/vla-faker')
 
-    # Train WDSR B model for 300,000 steps and evaluate model
+    # Train WDSR B model for train_steps steps and evaluate model
     # every 1000 steps on the first 10 images of the DIV2K
     # validation set. Save a checkpoint only if evaluation
     # PSNR has improved.
@@ -65,7 +65,7 @@ if __name__=='__main__':
                            version="",
                            usage="%prog fname datestr specnum [OPTIONS]",
                            description="Visualize and classify filterbank data")
-    parser.add_option("-c", "--cachdir", dest="caches_dir", type=str, default=None,
+    parser.add_option("-c", "--cachdir", dest="caches_dir", default=None,
                       help="directory with training/validation image data")
     parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default='model.h5',
                       help="directory with training/validation image data")
