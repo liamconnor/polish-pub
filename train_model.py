@@ -81,9 +81,9 @@ if __name__=='__main__':
                                    version="",
                                    usage="%prog fname datestr specnum [OPTIONS]",
                                    description="Visualize and classify filterbank data")
-    parser.add_option("-c", "--cachdir", dest="caches_dir", type=str, default=None,
+    parser.add_option("-c", "--cachdir", dest="caches_dir", type=str, default='',
                       help="directory with training/validation image data")
-    parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default=None,
+    parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default='model.h5',
                       help="directory with training/validation image data")
 
     options, args = parser.parse_args()
