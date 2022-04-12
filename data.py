@@ -3,15 +3,16 @@ import tensorflow as tf
 
 from tensorflow.python.data.experimental import AUTOTUNE
 
-
-class DIV2K:
+class RadioSky:
     def __init__(self,
                  scale=2,
                  subset='train',
                  downgrade='bicubic',
-                 images_dir='.div2k/images',
-                 caches_dir='.div2k/caches',
-                 nchan=1):
+                 images_dir='.radiosky/images',
+                 caches_dir='.radiosky/caches',
+                 nchan=1,
+                 ntrain=800,
+                 nvalid=100):
 
         self._ntire_2018 = True
         self._nchan = nchan
@@ -24,9 +25,9 @@ class DIV2K:
             raise ValueError(f'scale must be in ${_scales}')
 
         if subset == 'train':
-            self.image_ids = range(1, 801)
+            self.image_ids = range(1, ntrain+1) #hack
         elif subset == 'valid':
-            self.image_ids = range(801, 901)
+            self.image_ids = range(801, 801+nvalid)
         else:
             raise ValueError("subset must be 'train' or 'valid'")
 
@@ -69,7 +70,9 @@ class DIV2K:
 
     def hr_dataset(self):
         if not os.path.exists(self._hr_images_dir()):
-            download_archive(self._hr_images_archive(), self.images_dir, extract=True)
+            print("HR/I_sky dataset not found:")
+            print(self._hr_images_dir())
+            exit()
 
         ds = self._images_dataset(self._hr_image_files()).cache(self._hr_cache_file())
 
@@ -80,7 +83,9 @@ class DIV2K:
 
     def lr_dataset(self):
         if not os.path.exists(self._lr_images_dir()):
-            download_archive(self._lr_images_archive(), self.images_dir, extract=True)
+            print("LR/I_d dataset not found:")
+            print(self._lr_images_dir())
+            exit()
 
         ds = self._images_dataset(self._lr_image_files()).cache(self._lr_cache_file())
 
@@ -90,10 +95,10 @@ class DIV2K:
         return ds
 
     def _hr_cache_file(self):
-        return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_HR.cache')
+        return os.path.join(self.caches_dir, f'POLISH_{self.subset}_HR.cache')
 
     def _lr_cache_file(self):
-        return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}_X{self.scale}.cache')
+        return os.path.join(self.caches_dir, f'POLISH_{self.subset}_LR_{self.downgrade}_X{self.scale}.cache')
 
     def _hr_cache_index(self):
         return f'{self._hr_cache_file()}.index'
@@ -116,22 +121,22 @@ class DIV2K:
             return f'{image_id:04}x{self.scale}{self.downgrade[0]}.png'
 
     def _hr_images_dir(self):
-        return os.path.join(self.images_dir, f'DIV2K_{self.subset}_HR')
+        return os.path.join(self.images_dir, f'POLISH_{self.subset}_HR')
 
     def _lr_images_dir(self):
         if self._ntire_2018:
-            return os.path.join(self.images_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}')
+            return os.path.join(self.images_dir, f'POLISH_{self.subset}_LR_{self.downgrade}')
         else:
-            return os.path.join(self.images_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}', f'X{self.scale}')
+            return os.path.join(self.images_dir, f'POLISH_{self.subset}_LR_{self.downgrade}', f'X{self.scale}')
 
     def _hr_images_archive(self):
-        return f'DIV2K_{self.subset}_HR.zip'
+        return f'POLISH_{self.subset}_HR.zip'
 
     def _lr_images_archive(self):
         if self._ntire_2018:
-            return f'DIV2K_{self.subset}_LR_{self.downgrade}.zip'
+            return f'POLISH_{self.subset}_LR_{self.downgrade}.zip'
         else:
-            return f'DIV2K_{self.subset}_LR_{self.downgrade}_X{self.scale}.zip'
+            return f'POLISH_{self.subset}_LR_{self.downgrade}_X{self.scale}.zip'
 
     @staticmethod
     def _images_dataset(image_files, nchan=1):
@@ -140,7 +145,7 @@ class DIV2K:
         if nchan==3:
             ds = ds.map(lambda x: tf.image.decode_png(x, channels=3), num_parallel_calls=AUTOTUNE)
         elif nchan==1:
-            ds = ds.map(lambda x: tf.image.decode_png(x, dtype=tf.uint16, channels=1), num_parallel_calls=AUTOTUNE) # hack
+            ds = ds.map(lambda x: tf.image.decode_png(x, dtype=tf.uint16, channels=1), num_parallel_calls=AUTOTUNE)
         else:
             print("Wrong number of channels")
             return
@@ -155,159 +160,153 @@ class DIV2K:
         print(f'Cached decoded images in {cache_file}.')
 
 
-class RadioSky:
-    def __init__(self,
-                 scale=4,
-                 subset='train',
-                 downgrade='bicubic',
-                 images_dir='.radiosky/images',
-                 caches_dir='.radiosky/caches',
-                 ntrain=800,
-                 nvalid=100,
-                 nchan=1):
 
-        self._ntire_2018 = True
+# class RadioSky:
+#     def __init__(self,
+#                  scale=2,
+#                  subset='train',
+#                  downgrade='bicubic',
+#                  images_dir='.radiosky/images',
+#                  caches_dir='.radiosky/caches',
+#                  ntrain=800,
+#                  nvalid=100):
 
-        _scales = [2, 3, 4, 8]
+#         self._ntire_2018 = True
 
-        if scale in _scales:
-            self.scale = scale
-        else:
-            raise ValueError(f'scale must be in ${_scales}')
+#         _scales = [2, 3, 4, 8]
 
-        if subset == 'train':
-            self.image_ids = range(1, ntrain+1)
-        elif subset == 'valid':
-            self.image_ids = range(ntrain+1, ntrain+nvalid+1)
-        else:
-            raise ValueError("subset must be 'train' or 'valid'")
+#         if scale in _scales:
+#             self.scale = scale
+#         else:
+#             raise ValueError(f'scale must be in ${_scales}')
 
-        _downgrades_a = ['bicubic', 'unknown']
-        _downgrades_b = ['mild', 'difficult']
+#         if subset == 'train':
+#             self.image_ids = range(1, ntrain+1)
+#         elif subset == 'valid':
+#             self.image_ids = range(ntrain+1, ntrain+nvalid+1)
+#         else:
+#             raise ValueError("subset must be 'train' or 'valid'")
 
-        if scale == 8 and downgrade != 'bicubic':
-            raise ValueError(f'scale 8 only allowed for bicubic downgrade')
+#         _downgrades_a = ['bicubic', 'unknown']
+#         _downgrades_b = ['mild', 'difficult']
 
-        if downgrade in _downgrades_b and scale != 4:
-            raise ValueError(f'{downgrade} downgrade requires scale 4')
+#         if scale == 8 and downgrade != 'bicubic':
+#             raise ValueError(f'scale 8 only allowed for bicubic downgrade')
 
-        if downgrade == 'bicubic' and scale == 8:
-            self.downgrade = 'x8'
-        elif downgrade in _downgrades_b:
-            self.downgrade = downgrade
-        else:
-            self.downgrade = downgrade
-            self._ntire_2018 = False
+#         if downgrade in _downgrades_b and scale != 4:
+#             raise ValueError(f'{downgrade} downgrade requires scale 4')
 
-        self.subset = subset
-        self.images_dir = images_dir
-        self.caches_dir = caches_dir
-        os.makedirs(images_dir, exist_ok=True)
-        os.makedirs(caches_dir, exist_ok=True)
+#         if downgrade == 'bicubic' and scale == 8:
+#             self.downgrade = 'x8'
+#         elif downgrade in _downgrades_b:
+#             self.downgrade = downgrade
+#         else:
+#             self.downgrade = downgrade
+#             self._ntire_2018 = False
 
-    def __len__(self):
-        return len(self.image_ids)
+#         self.subset = subset
+#         self.images_dir = images_dir
+#         self.caches_dir = caches_dir
+#         os.makedirs(images_dir, exist_ok=True)
+#         os.makedirs(caches_dir, exist_ok=True)
 
-    def dataset(self, batch_size=16, repeat_count=None, random_transform=True):
-        ds = tf.data.Dataset.zip((self.lr_dataset(), self.hr_dataset()))
-        if random_transform:
-            ds = ds.map(lambda lr, hr: random_crop(lr, hr, scale=self.scale), num_parallel_calls=AUTOTUNE)
-            ds = ds.map(random_rotate, num_parallel_calls=AUTOTUNE)
-            ds = ds.map(random_flip, num_parallel_calls=AUTOTUNE)
-        ds = ds.batch(batch_size)
-        ds = ds.repeat(repeat_count)
-        ds = ds.prefetch(buffer_size=AUTOTUNE)
-        return ds
+#     def __len__(self):
+#         return len(self.image_ids)
 
-    def hr_dataset(self):
-        if not os.path.exists(self._hr_images_dir()):
-            print("Path does not exist: %s" % self._hr_images_dir())
-            exit()
+#     def dataset(self, batch_size=16, repeat_count=None, random_transform=True):
+#         ds = tf.data.Dataset.zip((self.lr_dataset(), self.hr_dataset()))
+#         if random_transform:
+#             ds = ds.map(lambda lr, hr: random_crop(lr, hr, scale=self.scale), num_parallel_calls=AUTOTUNE)
+#             ds = ds.map(random_rotate, num_parallel_calls=AUTOTUNE)
+#             ds = ds.map(random_flip, num_parallel_calls=AUTOTUNE)
+#         ds = ds.batch(batch_size)
+#         ds = ds.repeat(repeat_count)
+#         ds = ds.prefetch(buffer_size=AUTOTUNE)
+#         return ds
 
-        ds = self._images_dataset(self._hr_image_files(), nchan=self._nchan).cache(self._hr_cache_file())
+#     def hr_dataset(self):
+#         if not os.path.exists(self._hr_images_dir()):
+#             print("Path does not exist: %s" % self._hr_images_dir())
+#             exit()
 
-        if not os.path.exists(self._hr_cache_index()):
-            self._populate_cache(ds, self._hr_cache_file())
+#         ds = self._images_dataset(self._hr_image_files(), nchan=self._nchan).cache(self._hr_cache_file())
 
-        return ds
+#         if not os.path.exists(self._hr_cache_index()):
+#             self._populate_cache(ds, self._hr_cache_file())
 
-    def lr_dataset(self):
-        if not os.path.exists(self._lr_images_dir()):
-            print("Path does not exist: %s" % self._lr_images_dir())
-            exit()
-            #download_archive(self._lr_images_archive(), self.images_dir, extract=True)
+#         return ds
 
-        ds = self._images_dataset(self._lr_image_files(), nchan=self._nchan).cache(self._lr_cache_file())
+#     def lr_dataset(self):
+#         if not os.path.exists(self._lr_images_dir()):
+#             print("Path does not exist: %s" % self._lr_images_dir())
+#             exit()
+#             #download_archive(self._lr_images_archive(), self.images_dir, extract=True)
 
-        if not os.path.exists(self._lr_cache_index()):
-            self._populate_cache(ds, self._lr_cache_file())
+#         ds = self._images_dataset(self._lr_image_files(), nchan=self._nchan).cache(self._lr_cache_file())
 
-        return ds
+#         if not os.path.exists(self._lr_cache_index()):
+#             self._populate_cache(ds, self._lr_cache_file())
 
-    def _hr_cache_file(self):
-        return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_HR.cache')
+#         return ds
 
-    def _lr_cache_file(self):
-        return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}_X{self.scale}.cache')
+#     def _hr_cache_file(self):
+#         return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_HR.cache')
 
-    def _hr_cache_index(self):
-        return f'{self._hr_cache_file()}.index'
+#     def _lr_cache_file(self):
+#         return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}_X{self.scale}.cache')
 
-    def _lr_cache_index(self):
-        return f'{self._lr_cache_file()}.index'
+#     def _hr_cache_index(self):
+#         return f'{self._hr_cache_file()}.index'
 
-    def _hr_image_files(self):
-        images_dir = self._hr_images_dir()
-        return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids]
+#     def _lr_cache_index(self):
+#         return f'{self._lr_cache_file()}.index'
 
-    def _lr_image_files(self):
-        images_dir = self._lr_images_dir()
-        return [os.path.join(images_dir, self._lr_image_file(image_id)) for image_id in self.image_ids]
+#     def _hr_image_files(self):
+#         images_dir = self._hr_images_dir()
+#         return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids]
 
-    def _lr_image_file(self, image_id):
-        if not self._ntire_2018 or self.scale == 8:
-            return f'{image_id:04}x{self.scale}.png'
-        else:
-            return f'{image_id:04}x{self.scale}{self.downgrade[0]}.png'
+#     def _lr_image_files(self):
+#         images_dir = self._lr_images_dir()
+#         return [os.path.join(images_dir, self._lr_image_file(image_id)) for image_id in self.image_ids]
 
-    def _hr_images_dir(self):
-        return os.path.join(self.images_dir, f'DIV2K_{self.subset}_HR')
+#     def _lr_image_file(self, image_id):
+#         if not self._ntire_2018 or self.scale == 8:
+#             return f'{image_id:04}x{self.scale}.png'
+#         else:
+#             return f'{image_id:04}x{self.scale}{self.downgrade[0]}.png'
 
-    def _lr_images_dir(self):
-        if self._ntire_2018:
-            return os.path.join(self.images_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}')
-        else:
-            return os.path.join(self.images_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}', f'X{self.scale}')
+#     def _hr_images_dir(self):
+#         return os.path.join(self.images_dir, f'DIV2K_{self.subset}_HR')
 
-    def _hr_images_archive(self):
-        return f'DIV2K_{self.subset}_HR.zip'
+#     def _lr_images_dir(self):
+#         if self._ntire_2018:
+#             return os.path.join(self.images_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}')
+#         else:
+#             return os.path.join(self.images_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}', f'X{self.scale}')
 
-    def _lr_images_archive(self):
-        if self._ntire_2018:
-            return f'DIV2K_{self.subset}_LR_{self.downgrade}.zip'
-        else:
-            return f'DIV2K_{self.subset}_LR_{self.downgrade}_X{self.scale}.zip'
+#     def _hr_images_archive(self):
+#         return f'DIV2K_{self.subset}_HR.zip'
 
-    @staticmethod
-    def _images_dataset(image_files, nchan=1):
-        ds = tf.data.Dataset.from_tensor_slices(image_files)
-        ds = ds.map(tf.io.read_file)
-        if nchan==3:
-            ds = ds.map(lambda x: tf.image.decode_png(x, channels=3), num_parallel_calls=AUTOTUNE)
-        elif nchan==1:
-            ds = ds.map(lambda x: tf.image.decode_png(x, dtype=tf.uint16, channels=1), num_parallel_calls=AUTOTUNE) # hack
-        else:
-            print("Wrong number of channels")
-            return
-        
-        return ds
+#     def _lr_images_archive(self):
+#         if self._ntire_2018:
+#             return f'DIV2K_{self.subset}_LR_{self.downgrade}.zip'
+#         else:
+#             return f'DIV2K_{self.subset}_LR_{self.downgrade}_X{self.scale}.zip'
 
-    @staticmethod
-    def _populate_cache(ds, cache_file):
-        print(f'Caching decoded images in {cache_file} ...')
-        for _ in ds:
-            pass
-        print(f'Cached decoded images in {cache_file}.')
+#     @staticmethod
+#     def _images_dataset(image_files):
+#         ds = tf.data.Dataset.from_tensor_slices(image_files)
+#         ds = ds.map(tf.io.read_file)
+# #        ds = ds.map(lambda x: tf.image.decode_png(x, channels=3), num_parallel_calls=AUTOTUNE)
+#         ds = ds.map(lambda x: tf.image.decode_png(x, dtype=tf.uint16, channels=1), num_parallel_calls=AUTOTUNE) # hack
+#         return ds
+
+#     @staticmethod
+#     def _populate_cache(ds, cache_file):
+#         print(f'Caching decoded images in {cache_file} ...')
+#         for _ in ds:
+#             pass
+#         print(f'Cached decoded images in {cache_file}.')
 
 # -----------------------------------------------------------
 #  Transformations

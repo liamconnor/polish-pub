@@ -78,19 +78,40 @@ def main(images_dir, caches_dir, fnoutweights, ntrain=800,
 
 if __name__=='__main__':
     parser = OptionParser(prog="train_model",
-                                   version="",
-                                   usage="%prog fname datestr specnum [OPTIONS]",
-                                   description="Visualize and classify filterbank data")
+                           version="",
+                           usage="%prog fname datestr specnum [OPTIONS]",
+                           description="Visualize and classify filterbank data")
     parser.add_option("-c", "--cachdir", dest="caches_dir", type=str, default='',
                       help="directory with training/validation image data")
     parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default='model.h5',
                       help="directory with training/validation image data")
+    parser.add_option("-n", "--ntrain", dest="ntrain", type=int, default=800,
+                      help="number of image pairs to train on")
+    parser.add_option("-x", "--scale", dest="scale", type=int, default=4,
+                      help="upsample factor")
+    parser.add_option("--nchan", dest="nchan", type=int, default=1,
+                      help="number of frequency channels in images")
+    parser.add_option("--num_res_blocks", dest="num_res_blocks", type=int, default=32,
+                      help="number of residual blocks in neural network")
+    parser.add_option("--nbit", dest="nbit", type=int, default=16,
+                      help="number of bits in image data")
+    parser.add_option("--train_steps", dest="train_steps", type=int, default=10000,
+                      help="number of training steps")
 
     options, args = parser.parse_args()
     images_dir = args[0]
 
     main(images_dir, options.caches_dir, options.fnout_model, 
-         ntrain=800,
-         scale=3, nchan=1, nbit=16, 
-         num_res_blocks=32, 
-         train_steps=10000)
+         ntrain=options.ntrain,
+         scale=options.scale, 
+         nchan=options.nchan, 
+         nbit=options.nbit, 
+         num_res_blocks=options.num_res_blocks, 
+         train_steps=options.train_steps)
+
+
+
+
+
+
+
