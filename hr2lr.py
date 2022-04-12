@@ -19,12 +19,9 @@ try:
 except:
     print("Could not load astropy.io.fits")
 
-PIXEL_SIZE = 0.25 # resolution of HR map in arcseconds
-src_density = 5 # per sq arcminute 
-NSIDE = 2304 # number of pixels per side for high res image
-FREQMIN, FREQMAX = 0.7, 2.0
-
 def readfits(fnfits):
+    """ Read in fits file using astropy.io.fits 
+    """
     hdulist = fits.open(fnfits)
     dshape = hdulist[0].shape 
     if len(dshape)==2:
@@ -156,7 +153,7 @@ def convolvehr(data, kernel, plotit=False,
             plt.imshow(data, cmap=cmap,vmax=data.max()*0.1)
         plt.title('True', fontsize=15)
         plt.figure()
-        plt.imshow(kernel[...,0])
+        plt.imshow(kernel[...,0],cmap='Greys',vmax=kernel[...,0].max()*0.35)
         plt.title('Kernel / PSF', fontsize=20)
         plt.show()
 
@@ -274,14 +271,14 @@ def create_LR_image(fl, kernel, fdirout=None,
                 alphad = np.random.uniform(0,20)
                 if plotit:
                     plt.subplot(131)
-                    plt.imshow(kernel,vmax=0.1,)
+                    plt.imshow(kernel,vmax=0.1,cmap='Greys')
                 kernel_ = elastic_transform(kernel_, alpha=alphad,
                                            sigma=3, alpha_affine=0)
                 if plotit:
                     plt.subplot(132)
-                    plt.imshow(kernel_[..., 0], vmax=0.1)
+                    plt.imshow(kernel_[..., 0], vmax=0.1, cmap='Greys')
                     plt.subplot(133)
-                    plt.imshow(kernel-kernel_[..., 0],vmax=0.1, vmin=-0.1)
+                    plt.imshow(kernel-kernel_[..., 0],vmax=0.1, vmin=-0.1, cmap='Greys')
                     plt.colorbar()
                     plt.show()
 
@@ -311,6 +308,17 @@ def create_LR_image(fl, kernel, fdirout=None,
             else:
                 np.save(fnout[:-4], dataLR)
 
+        if nbit==8:
+            if save_img:
+                cv2.imwrite(fnout, dataLR.astype(np.uint8))
+            else:
+                np.save(fnout[:-4], dataLR)
+        elif nbit==16:
+            if save_img:
+                cv2.imwrite(fnout, dataLR.astype(np.uint16))
+            else:
+                np.save(fnout[:-4], dataLR)
+
         if galaxies or sky:
             fnoutHR = fdirout + fn.split('/')[-1][:-4] + '.png'
             fnoutHRnoise = fdirout + fn.split('/')[-1][:-4] + 'noise.png'
@@ -323,7 +331,7 @@ def create_LR_image(fl, kernel, fdirout=None,
             elif nbit==16:
                 if save_img:
                     cv2.imwrite(fnoutHR, data.astype(np.uint16))
-                    cv2.imwrite(fnoutHRnoise, data_noise.astype(np.uint16))
+#                    cv2.imwrite(fnoutHRnoise, data_noise.astype(np.uint16))
                 else:
                     np.save(fnoutHR, data)
 
@@ -356,10 +364,26 @@ if __name__=='__main__':
                       help="number of bits for image", default=16)
     parser.add_option('-n', '--nchan', dest='nchan', type=int,
                       help="number of frequency channels for image", default=1)
+    parser.add_option('--nimage_train', dest='nimage_train', type=int,
+                      help="number of training images", default=800)
+    parser.add_option('--nimage_valid', dest='nimage_valid', type=int,
+                      help="number of validation images", default=100)
     parser.add_option('--distort_psf', dest='distort_psf', action="store_true",
                       help="perturb PSF for each image generated")
+    parser.add_option('--pix', dest='pixel_size', type=float, default=0.25,
+                      help="pixel size of true sky in arcseconds")
+    parser.add_option('--src_density', dest='src_density', type=float, default=5,
+                      help="source density per sq arcminute")
+    parser.add_option('--nside', dest='nside', type=int, default=2048,
+                      help="dimension of HR image")
+
+    # Frequency range in GHz
+    FREQMIN, FREQMAX = 0.7, 2.0
 
     options, args = parser.parse_args()
+    PIXEL_SIZE = options.pixel_size
+    src_density = options.src_density
+    NSIDE = options.nside
 
     # Read in kernel. If -k is not given, assume Gaussian kernel 
     if options.kernel.endswith('npy'):
@@ -415,12 +439,14 @@ if __name__=='__main__':
     create_LR_image(fdirinTRAIN, kernel, fdirout=fdiroutTRAIN, 
             plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit, 
-            distort_psf=options.distort_psf, nchan=options.nchan)   
+            distort_psf=options.distort_psf, nchan=options.nchan,
+            nimages=options.nimage_train)   
     # Create image pairs for validation set
     create_LR_image(fdirinVALID, kernel, fdirout=fdiroutVALID, 
             plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit,
-            distort_psf=options.distort_psf, nchan=options.nchan)
+            distort_psf=options.distort_psf, nchan=options.nchan,
+            nimages=options.nimage_valid)
 
 
 

@@ -9,7 +9,8 @@ except:
     print("Could not load data_augmentation")
 
 class SimRadioGal:
-
+    """ Class for simulations the microJansky radio sky 
+    """
     def __init__(self, 
                 nx=2000,
                 ny=2000, 
