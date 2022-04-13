@@ -23,11 +23,6 @@ except:
 
 PIXEL_SIZE = 0.25 # resolution of HR map in arcseconds
 
-# SKA
-# python generate-hr.py images/PSF-nkern512-4x/train/0281x4.png ./weights-3e5-wdsr-b-32-x4.h5 -f images/PSF-nkern512-4x/train/0281.png --vm 150
-# python generate-hr.py images/PSF-nkern512-4x/train/0281x4.png ./weights-psf256-noise-4x.h5 -f images/PSF-nkern512-4x/train/0281.png
-# python generate-hr.py ./random-60x15s-nonoise.npy ./weights-psf256-noise-4x.h5 -k psf-briggs-2.npy -f ./random-60x15s-nonoise.npy --vm 25
-
 plt.rcParams.update({
                     'font.size': 12,
                     'font.family': 'serif',
@@ -191,7 +186,7 @@ def plotter(datalr, datasr, datahr=None, dataother=None,
 
 def func(fn_img, fn_model, psf=None, fnother=None,
          fn_img_hr=None, suptitle=None, 
-         fnfigout='test.pdf', vm=75, 
+         fnfigout='test.pdf', vm=75, scale=4,
          nbit=8, distortpsf=False,ksize=64, 
          alphad=0, fitgal=None):
 
@@ -268,16 +263,16 @@ def func(fn_img, fn_model, psf=None, fnother=None,
     else:
         print("Assuming data is already convolved")
 
-    model = wdsr_b(scale=4, num_res_blocks=32)
+    model = wdsr_b(scale=scale, num_res_blocks=32)
     model.load_weights(fn_model)
 
     datalr = datalr[:,:,None]
 #    datalr += np.random.normal(0, 0.001*datalr.max(), datalr.shape).astype(datalr.dtype)
 #    datalr = hr2lr.normalize_data(datalr, nbit=nbit)
 
-
     datasr = resolve_single(model, datalr, nbit=nbit)
-
+    print(datasr.shape, datalr.shape)
+    exit()
     if fitgal:
       import scipy.optimize as opt
       galparams = np.genfromtxt(fitgal)
@@ -386,7 +381,7 @@ if __name__=='__main__':
          vm=options.vm, nbit=options.nbit,
          distortpsf=options.distortpsf, 
          ksize=options.ksize, alphad=options.alphad, 
-         fitgal=options.fitgal)
+         fitgal=options.fitgal, scale=options.rebin)
 
 
 

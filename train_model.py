@@ -8,7 +8,7 @@ from data import RadioSky
 from model.wdsr import wdsr_b
 from train import WdsrTrainer
 
-def main(images_dir, caches_dir, fnoutweights, ntrain=800,
+def main(images_dir, caches_dir, fnoutweights, ntrain=800, nvalid=100,
          scale=4, nchan=1, nbit=16, num_res_blocks=32, batchsize=4,
          train_steps=10000):
 
@@ -18,7 +18,8 @@ def main(images_dir, caches_dir, fnoutweights, ntrain=800,
                      images_dir=images_dir,
                      caches_dir=caches_dir,
                      nchan=nchan,
-                     ntrain=ntrain)       # Training dataset are images 001 - 800
+                     ntrain=ntrain,
+                     nvalid=nvalid)       # Training dataset are images 001 - 800
 
     # Create a tf.data.Dataset         
     train_ds = train_loader.dataset(batch_size=batchsize,  # batch size as described in the EDSR and WDSR papers
@@ -29,7 +30,9 @@ def main(images_dir, caches_dir, fnoutweights, ntrain=800,
                      downgrade='bicubic', # 'bicubic', 'unknown', 'mild' or 'difficult' 
                      subset='valid',
                      images_dir=images_dir,
-                     caches_dir=caches_dir)      # Validation dataset are images 801 - 900
+                     caches_dir=caches_dir,
+                     ntrain=ntrain,
+                     nvalid=nvalid)      # Validation dataset are images 801 - 900
                      
     # Create a tf.data.Dataset          
     valid_ds = valid_loader.dataset(batch_size=1,           # use batch size of 1 as DIV2K images have different size
@@ -39,7 +42,7 @@ def main(images_dir, caches_dir, fnoutweights, ntrain=800,
 
 
     trainer = WdsrTrainer(model=wdsr_b(scale=scale, num_res_blocks=num_res_blocks, nchan=nchan), 
-                      checkpoint_dir=f'.ckpt/vla-faker')
+                      checkpoint_dir=f'.ckpt/%s'%fnoutweights.strip('.h5'))
 
     # Train WDSR B model for train_steps steps and evaluate model
     # every 1000 steps on the first 10 images of the DIV2K
@@ -69,8 +72,6 @@ if __name__=='__main__':
                       help="directory with training/validation image data")
     parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default='model.h5',
                       help="directory with training/validation image data")
-    parser.add_option("-n", "--ntrain", dest="ntrain", type=int, default=800,
-                      help="number of image pairs to train on")
     parser.add_option("-x", "--scale", dest="scale", type=int, default=4,
                       help="upsample factor")
     parser.add_option("--nchan", dest="nchan", type=int, default=1,
@@ -81,6 +82,10 @@ if __name__=='__main__':
                       help="number of bits in image data")
     parser.add_option("--train_steps", dest="train_steps", type=int, default=10000,
                       help="number of training steps")
+    parser.add_option('--ntrain', dest='ntrain', type=int,
+                      help="number of training images", default=800)
+    parser.add_option('--nvalid', dest='nvalid', type=int,
+                      help="number of validation images", default=100)
 
     options, args = parser.parse_args()
     images_dir = args[0]
@@ -95,6 +100,7 @@ if __name__=='__main__':
 
     main(images_dir, caches_dir, options.fnout_model, 
          ntrain=options.ntrain,
+         nvalid=options.nvalid,
          scale=options.scale, 
          nchan=options.nchan, 
          nbit=options.nbit, 

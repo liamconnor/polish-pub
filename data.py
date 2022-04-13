@@ -27,7 +27,7 @@ class RadioSky:
         if subset == 'train':
             self.image_ids = range(1, ntrain+1) #hack
         elif subset == 'valid':
-            self.image_ids = range(801, 801+nvalid)
+            self.image_ids = range(ntrain+1, ntrain+nvalid)
         else:
             raise ValueError("subset must be 'train' or 'valid'")
 

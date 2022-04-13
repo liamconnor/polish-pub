@@ -162,8 +162,8 @@ def convolvehr(data, kernel, plotit=False,
 def create_LR_image(fl, kernel, fdirout=None, 
                     galaxies=False, plotit=False, 
                     norm=True, sky=False, rebin=4, nbit=16, 
-                    distort_psf=False,
-                    nimages=800, nchan=1, save_img=True):
+                    distort_psf=False, subset='train',
+                    nimages=800, nchan=1, save_img=True, nstart=0):
     """ Create a set of image pairs (true sky, dirty image) 
     and save to output directory 
 
@@ -215,19 +215,24 @@ def create_LR_image(fl, kernel, fdirout=None,
         print("Expected a list or a str as fl input")
         return
 
+    assert subset in ['train', 'valid']
+
+    fdiroutHR = options.fdout+'/POLISH_%s_HR/'%subset
+    fdiroutLR = options.fdout+'/POLISH_%s_LR_bicubic/X%d/'%(subset,rebin)
+
     for ii in range(nimages):
         if fl is not None:
             fn = fl[ii]
-            if fdirout is None:
+            if fdiroutLR is None:
                 fnout = fn.strip('.png')+'-conv.npy'
             else:
-                fnout = fdirout + fn.split('/')[-1][:-4] + 'x%d.png' % rebin
+                fnoutLR = fdiroutLR + fn.split('/')[-1][:-4] + 'x%d.png' % rebin
         else:
-            fn = 'image%03d.png'%ii
-            fnout = fdirout + fn[:-4] + 'x%d.png' % rebin
+            fn = '%04d.png'%(ii+nstart)
+            fnoutLR = fdiroutLR + fn[:-4] + 'x%d.png' % rebin
 
-        if os.path.isfile(fnout):
-            print("File exists, skipping %s"%fnout)
+        if os.path.isfile(fnoutLR):
+            print("File exists, skipping %s"%fnoutLR)
             continue
 
         if ii%10==0:
@@ -239,7 +244,7 @@ def create_LR_image(fl, kernel, fdirout=None,
 
             # Get number of sources in this simulated image 
             nsrc = np.random.poisson(int(src_density*(Nx*Ny*PIXEL_SIZE**2/60.**2)))
-            fdirgalparams = fdirout[:-6]+'/galparams/'
+            fdirgalparams = fdirout+'/galparams/'
             if not os.path.isdir(fdirgalparams):
                 os.system('mkdir %s' % fdirgalparams)
             fnblobout = fdirgalparams + fn.split('/')[-1].strip('.png')+'GalParams.txt'
@@ -261,9 +266,6 @@ def create_LR_image(fl, kernel, fdirout=None,
         else:
             data = cv2.imread(fn)
         
-        #noise_arr = np.random.normal(0, 0.005*data.max(), data.shape)
-        #data += noise_arr.astype(data.dtype)
-
         if distort_psf:
             for aa in [1]:
                 kernel_ = kernel[..., None]*np.ones([1,1,3])
@@ -299,29 +301,29 @@ def create_LR_image(fl, kernel, fdirout=None,
 
         if nbit==8:
             if save_img:
-                cv2.imwrite(fnout, dataLR.astype(np.uint8))
+                cv2.imwrite(fnoutLR, dataLR.astype(np.uint8))
             else:
-                np.save(fnout[:-4], dataLR)
+                np.save(fnoutLR[:-4], dataLR)
         elif nbit==16:
             if save_img:
-                cv2.imwrite(fnout, dataLR.astype(np.uint16))
+                cv2.imwrite(fnoutLR, dataLR.astype(np.uint16))
             else:
-                np.save(fnout[:-4], dataLR)
+                np.save(fnoutLR[:-4], dataLR)
 
         if nbit==8:
             if save_img:
-                cv2.imwrite(fnout, dataLR.astype(np.uint8))
+                cv2.imwrite(fnoutLR, dataLR.astype(np.uint8))
             else:
-                np.save(fnout[:-4], dataLR)
+                np.save(fnoutLR[:-4], dataLR)
         elif nbit==16:
             if save_img:
-                cv2.imwrite(fnout, dataLR.astype(np.uint16))
+                cv2.imwrite(fnoutLR, dataLR.astype(np.uint16))
             else:
-                np.save(fnout[:-4], dataLR)
+                np.save(fnoutLR[:-4], dataLR)
 
         if galaxies or sky:
-            fnoutHR = fdirout + fn.split('/')[-1][:-4] + '.png'
-            fnoutHRnoise = fdirout + fn.split('/')[-1][:-4] + 'noise.png'
+            fnoutHR = fdiroutHR + fn.split('/')[-1][:-4] + '.png'
+            fnoutHRnoise = fdiroutHR + fn.split('/')[-1][:-4] + 'noise.png'
 
             if nbit==8:
                 if save_img:
@@ -364,9 +366,9 @@ if __name__=='__main__':
                       help="number of bits for image", default=16)
     parser.add_option('-n', '--nchan', dest='nchan', type=int,
                       help="number of frequency channels for image", default=1)
-    parser.add_option('--nimage_train', dest='nimage_train', type=int,
+    parser.add_option('--ntrain', dest='ntrain', type=int,
                       help="number of training images", default=800)
-    parser.add_option('--nimage_valid', dest='nimage_valid', type=int,
+    parser.add_option('--nvalid', dest='nvalid', type=int,
                       help="number of validation images", default=100)
     parser.add_option('--distort_psf', dest='distort_psf', action="store_true",
                       help="perturb PSF for each image generated")
@@ -410,23 +412,33 @@ if __name__=='__main__':
         fdirinTRAIN = None
         fdirinVALID = None 
     else:
-        fdirinTRAIN = options.fdirin+'/DIV2K_train_HR/'
-        fdirinVALID = options.fdirin+'/DIV2K_valid_HR/'
+        fdirinTRAIN = options.fdirin+'/POLISH_train_HR/'
+        fdirinVALID = options.fdirin+'/POLISH_valid_HR/'
 
     # Output directories for training and validation. 
     # If they don't exist, create them
-    fdiroutTRAIN = options.fdout+'/train/'
-    fdiroutVALID = options.fdout+'/valid/'
+    fdiroutTRAIN_HR = options.fdout+'/POLISH_train_HR'
+    fdiroutVALID_HR = options.fdout+'/POLISH_valid_HR'
+    fdiroutTRAIN_LR = options.fdout+'/POLISH_train_LR_bicubic/X%d'%options.rebin
+    fdiroutVALID_LR = options.fdout+'/POLISH_valid_LR_bicubic/X%d'%options.rebin
     
     fdiroutPSF = options.fdout+'/psf/'
 
-    if not os.path.isdir(fdiroutTRAIN):
+    if not os.path.isdir(fdiroutTRAIN_HR):
         print("Making output training directory")
-        os.system('mkdir -p %s' % fdiroutTRAIN)
+        os.system('mkdir -p %s' % fdiroutTRAIN_HR)
 
-    if not os.path.isdir(fdiroutVALID):
-        print("Making output validation directory")
-        os.system('mkdir -p %s' % fdiroutVALID)
+    if not os.path.isdir(fdiroutTRAIN_LR):
+        print("Making output training directory")
+        os.system('mkdir -p %s' % fdiroutTRAIN_LR)
+
+    if not os.path.isdir(fdiroutVALID_HR):
+        print("Making output training directory")
+        os.system('mkdir -p %s' % fdiroutVALID_HR)
+
+    if not os.path.isdir(fdiroutVALID_LR):
+        print("Making output training directory")
+        os.system('mkdir -p %s' % fdiroutVALID_LR)
 
     if not os.path.isdir(fdiroutPSF):
         print("Making output PSF directory")
@@ -436,17 +448,17 @@ if __name__=='__main__':
     np.save('%s/psf_ideal.npy' % fdiroutPSF, kernel)
 
     # Create image pairs for training
-    create_LR_image(fdirinTRAIN, kernel, fdirout=fdiroutTRAIN, 
+    create_LR_image(fdirinTRAIN, kernel, fdirout=options.fdout, 
             plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit, 
-            distort_psf=options.distort_psf, nchan=options.nchan,
-            nimages=options.nimage_train)   
+            distort_psf=options.distort_psf, nchan=options.nchan, subset='train',
+            nimages=options.ntrain, nstart=0)   
     # Create image pairs for validation set
-    create_LR_image(fdirinVALID, kernel, fdirout=fdiroutVALID, 
+    create_LR_image(fdirinVALID, kernel, fdirout=options.fdout, 
             plotit=options.plotit, galaxies=options.galaxies, 
             sky=options.sky, rebin=options.rebin, nbit=options.nbit,
-            distort_psf=options.distort_psf, nchan=options.nchan,
-            nimages=options.nimage_valid)
+            distort_psf=options.distort_psf, nchan=options.nchan, subset='valid',
+            nimages=options.nvalid, nstart=options.ntrain)
 
 
 
