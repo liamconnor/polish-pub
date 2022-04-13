@@ -40,7 +40,8 @@ def main(images_dir, caches_dir, fnoutweights, ntrain=800, nvalid=100,
                                 repeat_count=1)         # 1 epoch
 
 
-
+    print("Note we are assuming the following model checkpoint:",
+        f'.ckpt/%s'%fnoutweights.strip('.h5'))
     trainer = WdsrTrainer(model=wdsr_b(scale=scale, num_res_blocks=num_res_blocks, nchan=nchan), 
                       checkpoint_dir=f'.ckpt/%s'%fnoutweights.strip('.h5'))
 
@@ -68,9 +69,9 @@ if __name__=='__main__':
                            version="",
                            usage="%prog fname datestr specnum [OPTIONS]",
                            description="Visualize and classify filterbank data")
-    parser.add_option("-c", "--cachdir", dest="caches_dir", default=None,
+    parser.add_option("-c", "--cachdir", dest="caches_dir", default='model.h5',
                       help="directory with training/validation image data")
-    parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default='model.h5',
+    parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default=None,
                       help="directory with training/validation image data")
     parser.add_option("-x", "--scale", dest="scale", type=int, default=4,
                       help="upsample factor")
@@ -80,7 +81,7 @@ if __name__=='__main__':
                       help="number of residual blocks in neural network")
     parser.add_option("--nbit", dest="nbit", type=int, default=16,
                       help="number of bits in image data")
-    parser.add_option("--train_steps", dest="train_steps", type=int, default=10000,
+    parser.add_option("--train_steps", dest="train_steps", type=int, default=100000,
                       help="number of training steps")
     parser.add_option('--ntrain', dest='ntrain', type=int,
                       help="number of training images", default=800)
