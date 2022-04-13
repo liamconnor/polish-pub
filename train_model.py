@@ -71,9 +71,9 @@ if __name__=='__main__':
                            description="Visualize and classify filterbank data")
     parser.add_option("-c", "--cachdir", dest="caches_dir", default='model.h5',
                       help="directory with training/validation image data")
-    parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default=None,
+    parser.add_option("-f", "--fnout", dest="fnout_model", type=str, default='model.h5',
                       help="directory with training/validation image data")
-    parser.add_option("-x", "--scale", dest="scale", type=int, default=4,
+    parser.add_option("-r", "--scale", dest="scale", type=int, default=4,
                       help="upsample factor")
     parser.add_option("--nchan", dest="nchan", type=int, default=1,
                       help="number of frequency channels in images")
