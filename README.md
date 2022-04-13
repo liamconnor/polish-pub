@@ -16,3 +16,7 @@ Start by constructing a training/validation dataset. This will consist of a set 
 ```
 % python make_img_pairs.py -o dsa-example -k psf/dsa-2000-fullband-psf.fits -s 512
 ```
+The data will be stored in various subdirectories of dsa-example, which can be fed directly to the POLISH trainer. To train on these data simply run
+```
+% python 
+```
