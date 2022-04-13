@@ -14,4 +14,4 @@ https://github.com/krasserm/super-resolution
 
 Start by constructing a training/validation dataset. This will consist of a set of image pairs (true sky / dirty image) such that POLISH can learn deconvolution. You will require a PSF for the interferometer whose data you wish to deconvolve. This will produce 800 training image pairs, 100 validation image pairs using a forward-modeled dsa-2000 PSF. The radio sky simulation assumes the approximate senstivity of DSA-2000, i.e. SEFD=2.5 Jy.
 
-python make_img_pairs.py -o dsa-example -k psf/dsa-2000-fullband-psf.fits -s 512
+% python make_img_pairs.py -o dsa-example -k psf/dsa-2000-fullband-psf.fits -s 512
