@@ -18,5 +18,5 @@ Start by constructing a training/validation dataset. This will consist of a set 
 ```
 The data will be stored in various subdirectories of dsa-example, which can be fed directly to the POLISH trainer. To train on these data simply run
 ```
-% python train_model.py dsa-example -x 3 -f dsa-example-model.h5 
+% python train_model.py dsa-example -f dsa-example-model.h5 
 ```
