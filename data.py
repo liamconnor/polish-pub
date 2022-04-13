@@ -25,9 +25,9 @@ class RadioSky:
             raise ValueError(f'scale must be in ${_scales}')
 
         if subset == 'train':
-            self.image_ids = range(1, ntrain+1) #hack
+            self.image_ids = range(0, ntrain) #hack
         elif subset == 'valid':
-            self.image_ids = range(ntrain+1, ntrain+nvalid)
+            self.image_ids = range(ntrain, ntrain+nvalid)
         else:
             raise ValueError("subset must be 'train' or 'valid'")
 

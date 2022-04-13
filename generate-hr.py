@@ -346,7 +346,7 @@ if __name__=='__main__':
     parser.add_option('-k', '--psf', dest='psf', type='str',
                       help="If None, assume image is already low res", default=None)
     parser.add_option("-s", "--ksize", dest='ksize', type=int,
-                      help="size of kernel", default=64)
+                      help="size of kernel", default=256)
     parser.add_option('-t', '--title', dest='title', type='str',
                       help="Super title for plot", default=None)
     parser.add_option('-o', '--fnfigout', dest='fnfigout', default='test.pdf')    
