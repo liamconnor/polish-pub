@@ -2,6 +2,7 @@ import os
 import sys
 
 import optparse
+import numpy as np
 import matplotlib.pylab as plt
 
 from model import resolve_single
@@ -93,7 +94,7 @@ def plot_reconstruction(datalr, datasr, datahr=None, vm=1,
         plt.axis('off')
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig('reconstruct.png')
 
 if __name__=='__main__':
     # Example usage:
