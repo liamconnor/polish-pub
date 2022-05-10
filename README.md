@@ -22,5 +22,5 @@ python train_model.py dsa-example -f dsa-example-model.h5
 ```
 Now that we have a POLISH model, we can apply it to the validation data, or any dirty image, for that matter.
 ```
-python reconstruct.py ./dsa-examplex/POLISH_valid_LR_bicubic/X4/0104x4.png ./dsa-example-model.h5 -p -f ./dsa-examplex/POLISH_valid_HR/0104.png
+python reconstruct.py ./dsa-example/POLISH_valid_LR_bicubic/X4/0804x4.png ./dsa-example-model.h5 -p -f ./dsa-example/POLISH_valid_HR/0804.png
 ```
