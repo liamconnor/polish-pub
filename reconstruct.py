@@ -87,7 +87,7 @@ def plot_reconstruction(datalr, datasr, datahr=None, vm=1,
 
     if nsub==3:
         ax3 = plt.subplot(1,nsub,3, sharex=ax1, sharey=ax1)
-        plt.title('POLISH reconstruction', c='C2', fontsize=17)
+        plt.title('True sky', c='k', fontsize=17)
         plt.imshow(datahr, cmap=cmap, vmax=vmaxsr, vmin=vminsr, 
                   aspect='auto', extent=[0,1,0,1])
         plt.axis('off')
