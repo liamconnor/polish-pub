@@ -6,7 +6,6 @@ import time
 import tensorflow as tf
 
 from model import evaluate
-from model import srgan
 
 from tensorflow.keras.applications.vgg19 import preprocess_input
 from tensorflow.keras.losses import BinaryCrossentropy
