@@ -12,7 +12,7 @@ https://github.com/krasserm/super-resolution
 
 # using POLISH
 
-I use the following versions:
+I install the following versions of tensorflow and h5py:
 
 pip install tensorflow==2.0.0
 
