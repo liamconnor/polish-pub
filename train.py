@@ -53,6 +53,8 @@ class Trainer:
 
         self.now = time.perf_counter()
 
+        print(steps - ckpt.step.numpy())
+        print(train_dataset.take(steps - ckpt.step.numpy())
         for lr, hr in train_dataset.take(steps - ckpt.step.numpy()):
             ckpt.step.assign_add(1)
             step = ckpt.step.numpy()
