@@ -50,7 +50,7 @@ def reconstruct(fn_img, fn_model, scale, fnhr=None,
     model = wdsr_b(scale=scale, num_res_blocks=32)
     model.load_weights(fn_model)
     datalr = datalr[:,:,None]
-
+    print(datalr.shape)
 
     datasr = resolve_single(model, datalr, nbit=nbit)
     datasr = datasr.numpy()
