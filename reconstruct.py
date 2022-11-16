@@ -27,7 +27,7 @@ plt.rcParams.update({
                     'legend.loc': 'lower right'})
 
 def reconstruct(fn_img, fn_model, scale, fnhr=None,
-                nbit=16):
+                nbit=16, nchan=1):
     if fn_img.endswith('npy'):
         datalr = np.load(fn_img)[:, :]
     elif fn_img.endswith('png'):
@@ -47,7 +47,7 @@ def reconstruct(fn_img, fn_model, scale, fnhr=None,
     else:
         datahr = None
 
-    model = wdsr_b(scale=scale, num_res_blocks=32)
+    model = wdsr_b(scale=scale, num_res_blocks=32, nchan=nchan)
     model.load_weights(fn_model)
 
     if len(datalr.shape)==2:
