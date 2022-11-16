@@ -118,7 +118,7 @@ if __name__=='__main__':
                       help="high-res file name", default=None)
     parser.add_option('-x', dest='scale', 
                       help="spatial rebin factor", default=4)
-    parser.add_option('-n', dest='nchan', dtype=int,
+    parser.add_option('-n', dest='nchan', type=int,
                       help="number of frequency/color channels", default=1)
     parser.add_option('-b', '--nbit', dest='nbit', type=int,
                       help="number of bits in image", default=16)
