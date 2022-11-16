@@ -50,8 +50,11 @@ def reconstruct(fn_img, fn_model, scale, fnhr=None,
     model = wdsr_b(scale=scale, num_res_blocks=32, nchan=nchan)
     model.load_weights(fn_model)
 
-    if len(datalr.shape)==2:
+    if len(datalr.shape)==3 and nchan==1:
+      datalr = datalr[:,:,0,None]
+    elif len(datalr.shape)==2:
       datalr = datalr[:,:,None]
+     
       
     print(datalr.shape)
 
