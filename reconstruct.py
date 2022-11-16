@@ -115,6 +115,8 @@ if __name__=='__main__':
                       help="high-res file name", default=None)
     parser.add_option('-x', dest='scale', 
                       help="spatial rebin factor", default=4)
+    parser.add_option('-n', dest='nchan', 
+                      help="number of frequency/color channels", default=1)
     parser.add_option('-b', '--nbit', dest='nbit', type=int,
                       help="number of bits in image", default=16)
     parser.add_option('-p', '--plotit', dest='plotit', action="store_true",
@@ -124,7 +126,7 @@ if __name__=='__main__':
     fn_img, fn_model = args
 
     datalr, datasr, datahr = reconstruct(fn_img, fn_model, options.scale, 
-                                 fnhr=options.fnhr, nbit=options.nbit)
+                                 fnhr=options.fnhr, nbit=options.nbit, nchan=options.nchan)
 
     if datahr is not None:
         nsub = 3 
